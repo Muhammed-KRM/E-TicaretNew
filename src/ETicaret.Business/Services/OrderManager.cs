@@ -50,19 +50,19 @@ public class OrderManager : IOrderService
         _settingService = settingService;
     }
 
-    public async Task<OrderResultDto> CreateOrderAsync(Guid userId, OrderCreateDto dto)
+    public async Task<OrderResultDto> CreateOrderAsync(Guid? userId, string? guestId, OrderCreateDto dto)
     {
         using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
-            var cart = await _cartService.GetCartAsync(userId);
+            var cart = await _cartService.GetCartAsync(userId, guestId);
             if (!cart.Items.Any()) throw new BusinessException("Sepetiniz boş.");
 
             var shippingAddress = await _addressRepo.GetByIdAsync(dto.ShippingAddressId) ?? throw new NotFoundException("Teslimat Adresi", dto.ShippingAddressId);
-            if (shippingAddress.UserId != userId) throw new UnauthorizedException();
+            if (userId.HasValue && shippingAddress.UserId != userId.Value) throw new UnauthorizedException();
 
             var billingAddress = await _addressRepo.GetByIdAsync(dto.BillingAddressId) ?? throw new NotFoundException("Fatura Adresi", dto.BillingAddressId);
-            if (billingAddress.UserId != userId) throw new UnauthorizedException();
+            if (userId.HasValue && billingAddress.UserId != userId.Value) throw new UnauthorizedException();
 
             decimal subTotal = cart.TotalPrice;
             decimal shippingCost = await _settingService.GetDecimalSettingAsync("DefaultShippingPrice", 50m);
@@ -153,12 +153,12 @@ public class OrderManager : IOrderService
                 throw new BusinessException($"Ödeme başlatılamadı: {paymentResult.ErrorMessage}");
             }
 
-            if (!string.IsNullOrWhiteSpace(dto.CouponCode))
+            if (!string.IsNullOrWhiteSpace(dto.CouponCode) && userId.HasValue)
             {
-                await _couponService.UseCouponAsync(dto.CouponCode, userId, order.Id);
+                await _couponService.UseCouponAsync(dto.CouponCode, userId.Value, order.Id);
             }
 
-            await _cartService.ClearCartAsync(userId);
+            await _cartService.ClearCartAsync(userId, guestId);
             await transaction.CommitAsync();
 
             return new OrderResultDto(
@@ -177,14 +177,14 @@ public class OrderManager : IOrderService
         }
     }
 
-    public async Task<OrderDto?> GetOrderAsync(Guid orderId, Guid userId)
+    public async Task<OrderDto?> GetOrderAsync(Guid orderId, Guid? userId, string? guestId)
     {
         try
         {
             var order = await _context.Orders
                 .Include(o => o.Items)
                 .ThenInclude(i => i.Product)
-                .FirstOrDefaultAsync(o => o.Id == orderId && o.UserId == userId);
+                .FirstOrDefaultAsync(o => o.Id == orderId && (!userId.HasValue || o.UserId == userId.Value));
 
             if (order == null) return null;
 
@@ -208,14 +208,14 @@ public class OrderManager : IOrderService
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_MYORDERS, ex, userId); throw; }
     }
 
-    public async Task CancelOrderAsync(Guid orderId, Guid userId)
+    public async Task CancelOrderAsync(Guid orderId, Guid? userId, string? guestId)
     {
         try
         {
             var order = await _context.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == orderId) 
                 ?? throw new NotFoundException("Sipariş", orderId);
 
-            if (order.UserId != userId) throw new UnauthorizedException();
+            if (userId.HasValue && order.UserId != userId.Value) throw new UnauthorizedException();
             if (order.Status == OrderStatus.Shipped || order.Status == OrderStatus.Delivered)
                 throw new BusinessException("Kargoya verilmiş veya teslim edilmiş siparişler iptal edilemez.");
 
@@ -240,7 +240,132 @@ public class OrderManager : IOrderService
             });
         }
         catch (BusinessException) { throw; }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_CANCEL, ex, orderId, userId); throw; }
+        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_CANCEL, ex, orderId); throw; }
+    }
+
+    public async Task RequestReturnAsync(Guid orderId, Guid? userId, string? guestId, string returnReason)
+    {
+        var order = await _context.Orders
+            .FirstOrDefaultAsync(o => o.Id == orderId && (!userId.HasValue || o.UserId == userId.Value))
+            ?? throw new NotFoundException("Sipariş", orderId);
+
+        if (order.Status != OrderStatus.Delivered)
+            throw new BusinessException("Yalnızca teslim edilmiş siparişler için iade talebi oluşturulabilir.");
+
+        if (order.DeliveredAt.HasValue && (DateTime.UtcNow - order.DeliveredAt.Value).TotalDays > 14)
+            throw new BusinessException("İade süresi (14 gün) dolmuştur.");
+
+        order.Status = OrderStatus.ReturnRequested;
+        order.ReturnReason = returnReason;
+        order.ReturnRequestedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task ApproveReturnAsync(Guid orderId, string? adminNote)
+    {
+        var order = await _context.Orders
+            .Include(o => o.Items)
+            .FirstOrDefaultAsync(o => o.Id == orderId)
+            ?? throw new NotFoundException("Sipariş", orderId);
+
+        if (order.Status != OrderStatus.ReturnRequested)
+            throw new BusinessException("Bu sipariş için iade talebi bulunmuyor.");
+
+        if (!string.IsNullOrEmpty(order.PaymentTransactionId))
+        {
+            var refundSuccess = await _paymentService.RefundAsync(
+                order.PaymentTransactionId, order.TotalPrice);
+            if (!refundSuccess)
+                throw new BusinessException("Ödeme iadesi başarısız oldu. Lütfen tekrar deneyin.");
+        }
+
+        foreach (var item in order.Items)
+        {
+            var product = await _context.Products.FindAsync(item.ProductId);
+            if (product != null)
+            {
+                product.StockQuantity += item.Quantity;
+                product.SalesCount -= item.Quantity;
+            }
+        }
+
+        order.Status = OrderStatus.Refunded;
+        order.RefundedAt = DateTime.UtcNow;
+        order.RefundAmount = order.TotalPrice;
+        order.AdminReturnNote = adminNote;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task RejectReturnAsync(Guid orderId, string adminNote)
+    {
+        var order = await _context.Orders
+            .FirstOrDefaultAsync(o => o.Id == orderId)
+            ?? throw new NotFoundException("Sipariş", orderId);
+
+        if (order.Status != OrderStatus.ReturnRequested)
+            throw new BusinessException("Bu sipariş için iade talebi bulunmuyor.");
+
+        order.Status = OrderStatus.ReturnRejected;
+        order.AdminReturnNote = adminNote;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<OrderDto>> GetReturnRequestsAsync()
+    {
+        return await _context.Orders
+            .Include(o => o.Items).ThenInclude(i => i.Product)
+            .Include(o => o.User)
+            .Where(o => o.Status == OrderStatus.ReturnRequested)
+            .OrderByDescending(o => o.ReturnRequestedAt)
+            .Select(o => MapToDto(o))
+            .ToListAsync();
+    }
+
+    public async Task UpdateShippingInfoAsync(Guid orderId, UpdateShippingDto dto)
+    {
+        var order = await _context.Orders
+            .Include(o => o.User)
+            .FirstOrDefaultAsync(o => o.Id == orderId)
+            ?? throw new NotFoundException("Sipariş", orderId);
+
+        order.ShippingCompany = dto.ShippingCompany;
+        order.TrackingNumber = dto.TrackingNumber;
+
+        if (!string.IsNullOrEmpty(dto.TrackingNumber) && order.Status == OrderStatus.Preparing)
+        {
+            order.Status = OrderStatus.Shipped;
+            order.ShippedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateOrderStatusAdminAsync(Guid orderId, UpdateOrderStatusDto dto)
+    {
+        var order = await _context.Orders
+            .Include(o => o.User)
+            .FirstOrDefaultAsync(o => o.Id == orderId)
+            ?? throw new NotFoundException("Sipariş", orderId);
+
+        var newStatus = Enum.Parse<OrderStatus>(dto.NewStatus);
+
+        order.Status = newStatus;
+
+        switch (newStatus)
+        {
+            case OrderStatus.Preparing:
+                break;
+            case OrderStatus.Shipped:
+                order.ShippedAt = DateTime.UtcNow;
+                order.ShippingCompany = dto.ShippingCompany;
+                order.TrackingNumber = dto.TrackingNumber;
+                break;
+            case OrderStatus.Delivered:
+                order.DeliveredAt = DateTime.UtcNow;
+                break;
+        }
+
+        await _context.SaveChangesAsync();
     }
 
     private static OrderDto MapToDto(Order o) => new(
@@ -254,6 +379,12 @@ public class OrderManager : IOrderService
         DiscountAmount: o.DiscountAmount,
         TotalPrice: o.TotalPrice,
         TrackingNumber: o.TrackingNumber,
+        ReturnReason: o.ReturnReason,
+        CancellationReason: o.CancellationReason,
+        AdminReturnNote: o.AdminReturnNote,
+        ReturnRequestedAt: o.ReturnRequestedAt,
+        RefundedAt: o.RefundedAt,
+        RefundAmount: o.RefundAmount,
         Items: o.Items.Select(i => new OrderItemDto(
             ProductId: i.ProductId,
             ProductName: i.ProductName,

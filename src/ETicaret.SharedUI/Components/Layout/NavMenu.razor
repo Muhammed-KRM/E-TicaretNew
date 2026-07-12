@@ -28,7 +28,7 @@
         <div class="navbar-right">
             <!-- Masaüstü linkleri -->
             <div class="navbar-links">
-                <a href="/arama" class="nav-link">Öğretmen Bul</a>
+                <a href="/arama" class="nav-link">Ürünler</a>
 
                 <!-- Kategoriler Dropdown -->
                 <div class="nav-dropdown-wrapper">
@@ -41,38 +41,30 @@
                     @if (isCategoryDropdownOpen)
                     {
                         <div class="nav-category-dropdown" @onclick="CloseCategoryDropdown">
-                            <a href="/kategori/akademik" class="cat-dropdown-item">
-                                <span class="cat-dd-icon" style="background:#EEF2FF">📚</span>
-                                <div><strong>Akademik</strong><span>Matematik, Fizik, Kimya...</span></div>
+                            <a href="/kategori/elektronik" class="cat-dropdown-item">
+                                <span class="cat-dd-icon" style="background:#EEF2FF">💻</span>
+                                <div><strong>Elektronik</strong><span>Bilgisayar, Telefon, Aksesuar...</span></div>
                             </a>
-                            <a href="/kategori/sinav" class="cat-dropdown-item">
-                                <span class="cat-dd-icon" style="background:#F5F3FF">🎯</span>
-                                <div><strong>Sınav Hazırlık</strong><span>YKS, LGS, KPSS...</span></div>
+                            <a href="/kategori/giyim" class="cat-dropdown-item">
+                                <span class="cat-dd-icon" style="background:#F5F3FF">👕</span>
+                                <div><strong>Moda & Giyim</strong><span>Kadın, Erkek, Çocuk...</span></div>
                             </a>
-                            <a href="/kategori/yazilim" class="cat-dropdown-item">
-                                <span class="cat-dd-icon" style="background:#ECFDF5">💻</span>
-                                <div><strong>Yazılım & Teknoloji</strong><span>Python, React, SQL...</span></div>
-                            </a>
-                            <a href="/kategori/muzik" class="cat-dropdown-item">
-                                <span class="cat-dd-icon" style="background:#F5F3FF">🎵</span>
-                                <div><strong>Müzik & Sanat</strong><span>Piyano, Gitar, Resim...</span></div>
+                            <a href="/kategori/ev-yasam" class="cat-dropdown-item">
+                                <span class="cat-dd-icon" style="background:#ECFDF5">🏠</span>
+                                <div><strong>Ev & Yaşam</strong><span>Mobilya, Dekorasyon...</span></div>
                             </a>
                             <a href="/kategori/spor" class="cat-dropdown-item">
                                 <span class="cat-dd-icon" style="background:#FFFBEB">⚽</span>
-                                <div><strong>Spor & Aktivite</strong><span>Yüzme, Tenis, Yoga...</span></div>
-                            </a>
-                            <a href="/kategori/dil" class="cat-dropdown-item">
-                                <span class="cat-dd-icon" style="background:#F0F9FF">🌍</span>
-                                <div><strong>Yabancı Dil</strong><span>İngilizce, Almanca...</span></div>
+                                <div><strong>Spor & Outdoor</strong><span>Fitness, Kamp, Giyim...</span></div>
                             </a>
                             <div class="cat-dropdown-footer">
-                                <a href="/arama">Tüm İlanları Gör →</a>
+                                <a href="/arama">Tüm Ürünleri Gör →</a>
                             </div>
                         </div>
                     }
                 </div>
 
-                <a href="/nasil-calisir" class="nav-link">Nasıl Çalışır?</a>
+                <a href="/iletisim" class="nav-link">İletişim</a>
 
                 <!-- Dark Mode Toggle -->
                 <button class="dark-mode-toggle" @onclick="ToggleDarkMode" title="@(isDark ? "Açık Mod" : "Koyu Mod")" aria-label="Tema değiştir">
@@ -81,13 +73,19 @@
 
                 <AuthorizeView>
                     <Authorized>
-                        <a href="/panel/ilan-olustur" class="btn btn-primary btn-sm" style="border-radius: 50px; padding: 0.6rem 1.4rem;">
-                            ➕ İlan Ver
+                        <AuthorizeView Roles="Admin" Context="innerAdminCtx">
+                            <Authorized>
+                                <a href="/admin/urun-ekle" class="btn btn-primary btn-sm" style="border-radius: 50px; padding: 0.6rem 1.4rem;">
+                                    ➕ Ürün Ekle
+                                </a>
+                            </Authorized>
+                        </AuthorizeView>
+                        
+                        <a href="/sepet" class="nav-link nav-icon-link" title="Sepetim">
+                            🛒 <CartBadge />
                         </a>
                         <NotificationBell />
-                        <a href="/panel/mesajlarim" class="nav-link nav-icon-link" title="Mesajlarım">
-                            💬
-                        </a>
+                        
                         <div class="profile-dropdown-wrapper">
                             <button class="profile-avatar-btn" @onclick="ToggleDropdown" @onclick:stopPropagation="true">
                                 @(context.User.Identity?.Name?[..1].ToUpper() ?? "U")
@@ -101,9 +99,8 @@
                                     </div>
                                     <hr class="dropdown-divider" />
                                     <a href="/panel/dashboard" class="dropdown-item">📊 Kontrol Paneli</a>
-                                    <a href="/panel/ilanlarim" class="dropdown-item">📋 İlanlarım</a>
-                                    <a href="/panel/mesajlarim" class="dropdown-item">💬 Mesajlarım</a>
-                                    <a href="/panel/jetonlarim" class="dropdown-item">💰 Cüzdan & Jetonlar</a>
+                                    <a href="/panel/siparislerim" class="dropdown-item">📦 Siparişlerim</a>
+                                    <a href="/panel/adreslerim" class="dropdown-item">📍 Adreslerim</a>
                                     <a href="/panel/profil-ayarlari" class="dropdown-item">⚙️ Profil Ayarları</a>
                                     <hr class="dropdown-divider" />
                                     <AuthorizeView Roles="Admin" Context="adminCtx">
@@ -149,7 +146,7 @@
     @if (isMobileMenuOpen)
     {
         <div class="mobile-menu">
-            <a href="/arama" class="mobile-menu-link" @onclick="CloseMobileMenu">Öğretmen Bul</a>
+            <a href="/arama" class="mobile-menu-link" @onclick="CloseMobileMenu">Ürünler</a>
 
             <!-- Kategoriler (mobil) -->
             <button class="mobile-menu-link mobile-menu-section-toggle" @onclick="ToggleMobileCategorySection">
@@ -160,15 +157,11 @@
             </button>
             @if (isMobileCategorySectionOpen)
             {
-                <a href="/kategori/akademik" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">📚 Akademik</a>
-                <a href="/kategori/sinav" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">🎯 Sınav Hazırlık</a>
-                <a href="/kategori/yazilim" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">💻 Yazılım & Teknoloji</a>
-                <a href="/kategori/muzik" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">🎵 Müzik & Sanat</a>
-                <a href="/kategori/spor" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">⚽ Spor & Aktivite</a>
-                <a href="/kategori/dil" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">🌍 Yabancı Dil</a>
+                <a href="/kategori/elektronik" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">💻 Elektronik</a>
+                <a href="/kategori/giyim" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">👕 Giyim</a>
             }
 
-            <a href="/nasil-calisir" class="mobile-menu-link" @onclick="CloseMobileMenu">Nasıl Çalışır?</a>
+            <a href="/iletisim" class="mobile-menu-link" @onclick="CloseMobileMenu">İletişim</a>
 
             <!-- Dark Mode Toggle (Mobil) -->
             <button class="mobile-menu-link" style="text-align:left; background:none; border:none; cursor:pointer; width:100%;" @onclick="ToggleDarkMode">
@@ -177,12 +170,16 @@
 
             <AuthorizeView>
                 <Authorized>
-                    <a href="/panel/ilan-olustur" class="mobile-menu-link mobile-menu-highlight" @onclick="CloseMobileMenu">➕ İlan Ver</a>
+                    <AuthorizeView Roles="Admin" Context="innerAdminCtx">
+                        <Authorized>
+                            <a href="/admin/urun-ekle" class="mobile-menu-link mobile-menu-highlight" @onclick="CloseMobileMenu">➕ Ürün Ekle</a>
+                        </Authorized>
+                    </AuthorizeView>
+                    <a href="/sepet" class="mobile-menu-link" @onclick="CloseMobileMenu">🛒 Sepetim</a>
                     <a href="/bildirimler" class="mobile-menu-link" @onclick="CloseMobileMenu">🔔 Bildirimler</a>
-                    <a href="/panel/mesajlarim" class="mobile-menu-link" @onclick="CloseMobileMenu">💬 Mesajlarım</a>
                     <a href="/panel/dashboard" class="mobile-menu-link" @onclick="CloseMobileMenu">📊 Kontrol Paneli</a>
-                    <a href="/panel/ilanlarim" class="mobile-menu-link" @onclick="CloseMobileMenu">📋 İlanlarım</a>
-                    <a href="/panel/jetonlarim" class="mobile-menu-link" @onclick="CloseMobileMenu">💰 Cüzdan & Jetonlar</a>
+                    <a href="/panel/siparislerim" class="mobile-menu-link" @onclick="CloseMobileMenu">📦 Siparişlerim</a>
+                    <a href="/panel/adreslerim" class="mobile-menu-link" @onclick="CloseMobileMenu">📍 Adreslerim</a>
                     <a href="/panel/profil-ayarlari" class="mobile-menu-link" @onclick="CloseMobileMenu">⚙️ Profil Ayarları</a>
                     <AuthorizeView Roles="Admin" Context="adminCtx">
                         <Authorized>
@@ -213,7 +210,7 @@
     {
         if (firstRender)
         {
-            var theme = await JS.InvokeAsync<string>("ETicaret.initTheme");
+            var theme = await JS.InvokeAsync<string>("ozelders.initTheme");
             isDark = theme == "dark";
             StateHasChanged();
         }
@@ -250,7 +247,7 @@
 
     private async Task ToggleDarkMode()
     {
-        var newTheme = await JS.InvokeAsync<string>("ETicaret.toggleTheme");
+        var newTheme = await JS.InvokeAsync<string>("ozelders.toggleTheme");
         isDark = newTheme == "dark";
     }
 

@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<IAdminService, AdminManager>();
         services.AddScoped<ISettingService, SettingManager>();
         services.AddScoped<ILogService, LogManager>();
+        services.AddScoped<IContactService, ContactManager>();
         services.AddScoped<IEmailService, ETicaret.Business.Infrastructure.Email.SmtpEmailService>();
         services.AddScoped<IModerationService, ModerationManager>();
         

@@ -18,10 +18,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         
         // Navigation properties are implicitly configured in most cases,
         // but we can be explicit.
-        builder.HasMany(u => u.Products)
-            .WithOne(p => p.Seller)
-            .HasForeignKey(p => p.SellerId)
-            .OnDelete(DeleteBehavior.Cascade);
+
 
         builder.HasMany(u => u.Orders)
             .WithOne(o => o.User)

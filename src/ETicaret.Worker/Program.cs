@@ -25,12 +25,13 @@ if (!string.IsNullOrEmpty(firebaseCredPath) && File.Exists(firebaseCredPath))
     });
 }
 
-// MassTransit v8 — RabbitMQ (ücretsiz, lisans gerektirmez)
+// MassTransit v8 — RabbitMQ
 builder.Services.AddMassTransit(x =>
 {
-    x.AddConsumer<ListingCreatedConsumer>();
-    x.AddConsumer<ListingUpdatedConsumer>();
-    x.AddConsumer<ListingDeletedConsumer>();
+    x.AddConsumer<ProductCreatedConsumer>();
+    x.AddConsumer<OrderCreatedConsumer>();
+    x.AddConsumer<OrderShippedConsumer>();
+    x.AddConsumer<RefundApprovedConsumer>();
     x.AddConsumer<SendNotificationConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
@@ -49,7 +50,6 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
-builder.Services.AddHostedService<ETicaret.Worker.Services.VitrinExpirationWorker>();
 builder.Services.AddHostedService<ETicaret.Worker.Services.NotificationCleanupWorker>();
 
 var host = builder.Build();

@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
 
+using ETicaret.Data.Entities;
+
 namespace ETicaret.Business.Interfaces;
 
 public interface ILogService
@@ -15,6 +17,31 @@ public interface ILogService
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string filePath = "",
         [CallerLineNumber] int lineNumber = 0);
+
+    // ➕ YENİ — Fonksiyon BAŞARI logu (input + output + süre)
+    Task LogFunctionSuccessAsync(
+        string code,
+        object? inputData,
+        object? outputData,
+        int durationMs,
+        Guid? userId = null,
+        string? traceId = null,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string filePath = "",
+        [CallerLineNumber] int lineNumber = 0);
+
+    // ➕ YENİ — Fonksiyon loglarını listeleme (Admin paneli)
+    Task<List<FunctionLog>> GetFunctionLogsAsync(
+        DateTime? from, DateTime? to,
+        string? severity, string? className,
+        bool? isSuccess, int page = 1, int pageSize = 50);
+
+    // ➕ YENİ — Endpoint loglarını listeleme (Admin paneli)
+    Task<List<EndpointLog>> GetEndpointLogsAsync(
+        DateTime? from, DateTime? to,
+        string? method, string? path,
+        int? minStatusCode, int? maxStatusCode,
+        int page = 1, int pageSize = 50);
 }
 
 public class EndpointLogEntry

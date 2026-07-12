@@ -1,0 +1,167 @@
+@page "/arama"
+@page "/kategori/{slug}"
+@inject IProductService ProductService
+@inject NavigationManager NavManager
+
+<PageTitle>Ürünler | ETicaret.com</PageTitle>
+
+<div class="container padding-y-xl">
+    <div class="row">
+        <!-- Sol Panel (Filtreler) -->
+        <aside class="col-md-3">
+            <div class="filter-panel glass padding-lg" style="border-radius: var(--radius-md);">
+                <h3 class="mb-4">Filtreler</h3>
+
+                <div class="filter-group mb-4">
+                    <h4 class="mb-2">Fiyat Aralığı</h4>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="number" class="form-control" placeholder="En Az" @bind="minPrice" />
+                        <span>-</span>
+                        <input type="number" class="form-control" placeholder="En Çok" @bind="maxPrice" />
+                    </div>
+                </div>
+
+                <div class="filter-group mb-4">
+                    <h4 class="mb-2">Kategoriler</h4>
+                    <div class="category-list">
+                        <label class="d-block"><input type="checkbox" /> Elektronik</label>
+                        <label class="d-block"><input type="checkbox" /> Giyim</label>
+                        <label class="d-block"><input type="checkbox" /> Ev & Yaşam</label>
+                        <label class="d-block"><input type="checkbox" /> Spor</label>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary w-100" @onclick="ApplyFilters">Uygula</button>
+            </div>
+        </aside>
+
+        <!-- Sağ Panel (Ürünler) -->
+        <main class="col-md-9">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 style="font-size: 1.5rem;">Ürünler</h1>
+                <select class="form-select w-auto" @bind="sortBy">
+                    <option value="newest">En Yeniler</option>
+                    <option value="price_asc">Fiyat: Artan</option>
+                    <option value="price_desc">Fiyat: Azalan</option>
+                </select>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="text-center padding-xl">Yükleniyor...</div>
+            }
+            else if (!products.Any())
+            {
+                <div class="text-center padding-xl glass">Sonuç bulunamadı.</div>
+            }
+            else
+            {
+                <div class="grid grid-3 gap-4">
+                    @foreach (var product in products)
+                    {
+                        <div class="product-card"
+                            style="background: white; border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
+                            <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--color-text-primary);">
+                                @product.Title</h3>
+                            <div
+                                style="font-weight: 700; color: var(--color-primary); font-size: 1.25rem; margin-bottom: 1rem;">
+                                @product.Price.ToString("C2")</div>
+                            <a href="/urun/@product.Id" class="btn btn-outline" style="width: 100%;">İncele</a>
+                        </div>
+                    }
+                </div>
+            }
+        </main>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? slug { get; set; }
+
+    [SupplyParameterFromQuery] public string? q { get; set; }
+
+
+
+    private List<ProductDto> products = new();
+
+    private bool isLoading = true;
+
+
+
+    private decimal? minPrice;
+
+    private decimal? maxPrice;
+
+    private string sortBy = "newest";
+
+
+
+    protected override async Task OnParametersSetAsync()
+
+    {
+
+        await LoadProductsAsync();
+
+    }
+
+
+
+    private async Task LoadProductsAsync()
+
+    {
+
+        isLoading = true;
+
+        try
+
+        {
+
+            var filter = new ProductSearchFilterDto
+                {
+                    Query = q,
+
+                    MinPrice = minPrice,
+
+                    MaxPrice = maxPrice,
+
+                    Page = 1,
+
+                    PageSize = 20
+
+                };
+
+            var result = await ProductService.SearchAsync(filter);
+
+            products = result.Items;
+
+        }
+
+        catch
+
+        {
+
+            products = new List<ProductDto>();
+
+        }
+
+        finally
+
+        {
+
+            isLoading = false;
+
+        }
+
+    }
+
+
+
+    private async Task ApplyFilters()
+
+    {
+
+        await LoadProductsAsync();
+
+    }
+}

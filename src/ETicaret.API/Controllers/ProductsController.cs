@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ETicaret.Business.DTOs;
 using ETicaret.Business.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ETicaret.API.Controllers;
 
@@ -48,5 +49,29 @@ public class ProductsController : ControllerBase
     {
         var products = await _productService.GetFeaturedAsync();
         return Ok(products);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<ProductDto>> Create([FromBody] ProductCreateDto dto)
+    {
+        var result = await _productService.CreateAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<ProductDto>> Update(Guid id, [FromBody] ProductUpdateDto dto)
+    {
+        var result = await _productService.UpdateAsync(id, dto);
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> Delete(Guid id)
+    {
+        await _productService.DeleteAsync(id);
+        return NoContent();
     }
 }

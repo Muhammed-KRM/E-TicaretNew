@@ -5,7 +5,7 @@ using ETicaret.Data.Enums;
 public class Product
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid SellerId { get; set; }
+    public Guid? CreatedByUserId { get; set; }
     public int CategoryId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
@@ -25,7 +25,6 @@ public class Product
     public DateTime? UpdatedAt { get; set; }
 
     // Navigation Properties
-    public User Seller { get; set; } = null!;
     public Category Category { get; set; } = null!;
     public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
     public ICollection<Review> Reviews { get; set; } = new List<Review>();

@@ -27,23 +27,23 @@ public class CartManager : ICartService
         _logService = logService;
     }
 
-    public async Task<CartDto> GetCartAsync(Guid userId)
+    public async Task<CartDto> GetCartAsync(Guid? userId, string? guestId)
     {
         try
         {
-            var cart = await GetOrCreateCartAsync(userId);
+            var cart = await GetOrCreateCartAsync(userId, guestId);
             return MapToDto(cart);
         }
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_GET, ex, userId); throw; }
     }
 
-    public async Task AddItemAsync(Guid userId, Guid productId, int quantity)
+    public async Task AddItemAsync(Guid? userId, string? guestId, Guid productId, int quantity)
     {
         try
         {
             if (quantity <= 0) throw new BusinessException("Miktar 0'dan büyük olmalıdır.");
 
-            var cart = await GetOrCreateCartAsync(userId);
+            var cart = await GetOrCreateCartAsync(userId, guestId);
             var product = await _productRepo.GetByIdAsync(productId) ?? throw new NotFoundException("Ürün", productId);
 
             if (!product.IsActive) throw new BusinessException("Bu ürün şu anda satışta değil.");
@@ -63,7 +63,7 @@ public class CartManager : ICartService
                 cart.Items.Add(new CartItem { ProductId = productId, Quantity = quantity });
             }
 
-            cart.UpdatedAt = DateTime.UtcNow;
+            cart.LastModified = DateTime.UtcNow;
             _cartRepo.Update(cart);
             await _cartRepo.SaveChangesAsync();
         }
@@ -71,17 +71,17 @@ public class CartManager : ICartService
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_ADD, ex, new { userId, productId, quantity }); throw; }
     }
 
-    public async Task UpdateQuantityAsync(Guid userId, Guid productId, int quantity)
+    public async Task UpdateQuantityAsync(Guid? userId, string? guestId, Guid productId, int quantity)
     {
         try
         {
             if (quantity <= 0)
             {
-                await RemoveItemAsync(userId, productId);
+                await RemoveItemAsync(userId, guestId, productId);
                 return;
             }
 
-            var cart = await GetOrCreateCartAsync(userId);
+            var cart = await GetOrCreateCartAsync(userId, guestId);
             var product = await _productRepo.GetByIdAsync(productId) ?? throw new NotFoundException("Ürün", productId);
 
             if (product.StockQuantity < quantity)
@@ -91,7 +91,7 @@ public class CartManager : ICartService
             if (existingItem != null)
             {
                 existingItem.Quantity = quantity;
-                cart.UpdatedAt = DateTime.UtcNow;
+                cart.LastModified = DateTime.UtcNow;
                 _cartRepo.Update(cart);
                 await _cartRepo.SaveChangesAsync();
             }
@@ -100,17 +100,17 @@ public class CartManager : ICartService
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_UPDATE, ex, new { userId, productId, quantity }); throw; }
     }
 
-    public async Task RemoveItemAsync(Guid userId, Guid productId)
+    public async Task RemoveItemAsync(Guid? userId, string? guestId, Guid productId)
     {
         try
         {
-            var cart = await GetOrCreateCartAsync(userId);
+            var cart = await GetOrCreateCartAsync(userId, guestId);
             var existingItem = cart.Items.FirstOrDefault(i => i.ProductId == productId);
             
             if (existingItem != null)
             {
                 cart.Items.Remove(existingItem);
-                cart.UpdatedAt = DateTime.UtcNow;
+                cart.LastModified = DateTime.UtcNow;
                 _cartRepo.Update(cart);
                 await _cartRepo.SaveChangesAsync();
             }
@@ -118,35 +118,47 @@ public class CartManager : ICartService
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_REMOVE, ex, new { userId, productId }); throw; }
     }
 
-    public async Task ClearCartAsync(Guid userId)
+    public async Task ClearCartAsync(Guid? userId, string? guestId)
     {
         try
         {
-            var cart = await GetOrCreateCartAsync(userId);
+            var cart = await GetOrCreateCartAsync(userId, guestId);
             cart.Items.Clear();
-            cart.UpdatedAt = DateTime.UtcNow;
+            cart.LastModified = DateTime.UtcNow;
             _cartRepo.Update(cart);
             await _cartRepo.SaveChangesAsync();
         }
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_CLEAR, ex, userId); throw; }
     }
 
-    public async Task<int> GetCartItemCountAsync(Guid userId)
+    public async Task<int> GetCartItemCountAsync(Guid? userId, string? guestId)
     {
         try
         {
-            var cart = await GetOrCreateCartAsync(userId);
+            var cart = await GetOrCreateCartAsync(userId, guestId);
             return cart.Items.Sum(i => i.Quantity);
         }
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_COUNT, ex, userId); throw; }
     }
 
-    private async Task<Cart> GetOrCreateCartAsync(Guid userId)
+    private async Task<Cart> GetOrCreateCartAsync(Guid? userId, string? guestId)
     {
-        var cart = (await _cartRepo.FindAsync(c => c.UserId == userId)).FirstOrDefault();
+        if (userId == null && string.IsNullOrWhiteSpace(guestId))
+            throw new BusinessException("Kullanıcı kimliği veya misafir kimliği bulunamadı.");
+
+        Cart? cart = null;
+        if (userId.HasValue)
+        {
+            cart = (await _cartRepo.FindAsync(c => c.UserId == userId)).FirstOrDefault();
+        }
+        else
+        {
+            cart = (await _cartRepo.FindAsync(c => c.GuestId == guestId)).FirstOrDefault();
+        }
+
         if (cart == null)
         {
-            cart = new Cart { UserId = userId };
+            cart = new Cart { UserId = userId, GuestId = guestId };
             await _cartRepo.AddAsync(cart);
             await _cartRepo.SaveChangesAsync();
         }

@@ -5,7 +5,7 @@ namespace ETicaret.Data.Entities;
 public class Order
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid UserId { get; set; }
+    public Guid? UserId { get; set; }
     public string OrderNumber { get; set; } = string.Empty;
     public OrderStatus Status { get; set; }
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;
@@ -31,6 +31,19 @@ public class Order
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
 
+    // Misafir Müşteri Bilgileri
+    public string? GuestName { get; set; }
+    public string? GuestEmail { get; set; }
+    public string? GuestPhone { get; set; }
+
+    // İade / İptal Bilgileri
+    public string? CancellationReason { get; set; }
+    public string? ReturnReason { get; set; }
+    public DateTime? ReturnRequestedAt { get; set; }
+    public DateTime? RefundedAt { get; set; }
+    public decimal? RefundAmount { get; set; }
+    public string? AdminReturnNote { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? PaidAt { get; set; }
     public DateTime? ShippedAt { get; set; }
@@ -38,6 +51,6 @@ public class Order
     public DateTime? CancelledAt { get; set; }
 
     // Navigation Properties
-    public User User { get; set; } = null!;
+    public User? User { get; set; }
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
 }

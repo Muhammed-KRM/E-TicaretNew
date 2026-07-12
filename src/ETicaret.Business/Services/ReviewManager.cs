@@ -49,8 +49,6 @@ public class ReviewManager : IReviewService
             var product = await _productRepo.GetByIdAsync(dto.ProductId)
                 ?? throw new NotFoundException("Ürün", dto.ProductId);
 
-            if (product.SellerId == reviewerId)
-                throw new BusinessException("Kendi ürününüze yorum yapamazsınız.");
 
             // Kullanıcı bu ürünü satın almış mı kontrolü
             var hasPurchased = await _context.OrderItems

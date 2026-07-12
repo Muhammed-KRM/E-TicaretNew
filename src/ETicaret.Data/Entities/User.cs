@@ -39,7 +39,6 @@ public class User
     public string? BanReason { get; set; }
 
     // Navigation Properties
-    public ICollection<Product> Products { get; set; } = new List<Product>();
     public ICollection<Address> Addresses { get; set; } = new List<Address>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
     public Cart? Cart { get; set; }

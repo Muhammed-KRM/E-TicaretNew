@@ -1,0 +1,201 @@
+@page "/urun/{id:guid}"
+@page "/urun/slug/{slug}"
+@inject IProductService ProductService
+@inject ICartService CartService
+@inject NavigationManager NavManager
+
+<PageTitle>@product?.Title - E-Ticaret</PageTitle>
+
+<div class="container padding-y-xl">
+    @if (isLoading)
+
+    {
+        <div class="text-center padding-xl">Yükleniyor...</div>
+    }
+
+    else if (product == null)
+
+    {
+        <div class="text-center padding-xl glass">Ürün bulunamadı.</div>
+    }
+
+    else
+
+    {
+        <div class="row mb-5">
+            <!-- Sol: Resim Galerisi -->
+            <div class="col-md-6">
+                <div class="product-gallery glass padding-lg text-center"
+                    style="border-radius: var(--radius-lg); height: 400px; display: flex; align-items: center; justify-content: center; font-size: 6rem;">
+                    📦
+                </div>
+            </div>
+
+            <!-- Sağ: Ürün Bilgileri -->
+            <div class="col-md-6">
+                <h1 style="color: var(--color-primary); font-size: 2rem; margin-bottom: 0.5rem;">@product.Title</h1>
+                <p class="text-muted mb-4">Marka: <strong>Bilinmiyor</strong> | Stok Kodu:
+                    <strong>#@product.Id.ToString().Substring(0, 8)</strong></p>
+
+                <div class="price-display mb-4"
+                    style="font-size: 2rem; font-weight: 800; color: var(--color-text-primary);">
+                    @product.Price.ToString("C2")
+                </div>
+
+                <div class="mb-4">
+                    <p>@product.Description</p>
+                </div>
+
+                <div class="mb-4">
+                    <strong>Stok Durumu:</strong>
+                    @if (product.StockQuantity > 0)
+                    {
+                        <span class="text-success">Stokta Var (@product.StockQuantity adet)</span>
+                    }
+                    else
+                    {
+                        <span class="text-danger">Tükendi</span>
+                    }
+                </div>
+
+                <div class="d-flex gap-3 mb-4 align-items-center">
+                    <div class="input-group" style="width: 120px;">
+                        <button class="btn btn-outline-secondary" @onclick="DecreaseQuantity">-</button>
+                        <input type="number" class="form-control text-center" @bind="quantity" min="1"
+                            max="@product.StockQuantity" />
+                        <button class="btn btn-outline-secondary" @onclick="IncreaseQuantity">+</button>
+                    </div>
+
+                    <button class="btn btn-primary flex-grow-1"
+                        style="background-color: var(--color-accent); border-color: var(--color-accent);"
+                        @onclick="AddToCart" disabled="@(product.StockQuantity == 0)">
+                        🛒 Sepete Ekle
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alt: Tablar (Açıklama, Yorumlar) -->
+        <div class="product-tabs glass padding-lg" style="border-radius: var(--radius-lg);">
+            <ul class="nav nav-tabs mb-4" style="border-bottom: 2px solid var(--color-border);">
+                <li class="nav-item">
+                    <button class="nav-link active"
+                        style="font-weight: 600; color: var(--color-primary); border: none; background: transparent;">Açıklama</button>
+                </li>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane show active">
+                    <p>@product.Description</p>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid? id { get; set; }
+
+    [Parameter] public string? slug { get; set; }
+
+
+
+    private ProductDto? product;
+
+    private bool isLoading = true;
+
+    private int quantity = 1;
+
+
+
+    protected override async Task OnParametersSetAsync()
+
+    {
+
+        isLoading = true;
+
+        try
+
+        {
+
+            if (id.HasValue)
+
+            {
+
+                product = await ProductService.GetByIdAsync(id.Value);
+
+            }
+
+            else if (!string.IsNullOrEmpty(slug))
+
+            {
+
+                product = await ProductService.GetBySlugAsync(slug);
+
+            }
+
+        }
+
+        catch
+
+        {
+
+            product = null;
+
+        }
+
+        finally
+
+        {
+
+            isLoading = false;
+
+        }
+
+    }
+
+
+
+    private void DecreaseQuantity()
+
+    {
+
+        if (quantity > 1) quantity--;
+
+    }
+
+
+
+    private void IncreaseQuantity()
+
+    {
+
+        if (product != null && quantity < product.StockQuantity) quantity++;
+
+    }
+
+
+
+    private async Task AddToCart()
+
+    {
+
+        if (product == null || product.StockQuantity == 0) return;
+
+
+
+        try
+        {
+            await CartService.AddItemAsync(null, null, product.Id, quantity);
+            NavManager.NavigateTo("/sepet");
+        }
+
+        catch (Exception ex)
+
+        {
+
+            Console.WriteLine($"Sepete eklenirken hata: {ex.Message}");
+
+        }
+
+    }
+}

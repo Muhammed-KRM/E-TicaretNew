@@ -51,12 +51,17 @@ public class ProductManager : IProductService
 
     public async Task<ProductSearchResultDto> SearchAsync(ProductSearchFilterDto filters, CancellationToken ct = default)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-            return await _searchService.SearchAsync(filters);
+            var result = await _searchService.SearchAsync(filters);
+            sw.Stop();
+            await _logService.LogFunctionSuccessAsync(EC_SEARCH, filters, result, (int)sw.ElapsedMilliseconds);
+            return result;
         }
         catch (Exception ex)
         {
+            sw.Stop();
             await _logService.LogFunctionErrorAsync(EC_SEARCH, ex, filters);
             throw;
         }
@@ -64,47 +69,63 @@ public class ProductManager : IProductService
 
     public async Task<ProductDto?> GetByIdAsync(Guid id)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             var product = await _productRepo.GetByIdAsync(id); // WithSellerAndCategory dahil olmalı repoda
             if (product == null || !product.IsActive) return null;
-            return MapToDto(product);
+            var result = MapToDto(product);
+            sw.Stop();
+            await _logService.LogFunctionSuccessAsync(EC_GETBYID, id, result, (int)sw.ElapsedMilliseconds);
+            return result;
         }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_GETBYID, ex, id); throw; }
+        catch (Exception ex) { sw.Stop(); await _logService.LogFunctionErrorAsync(EC_GETBYID, ex, id); throw; }
     }
 
     public async Task<ProductDto?> GetBySlugAsync(string slug)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             var product = await _productRepo.GetBySlugWithDetailsAsync(slug);
             if (product == null || !product.IsActive) return null;
-            return MapToDto(product);
+            var result = MapToDto(product);
+            sw.Stop();
+            await _logService.LogFunctionSuccessAsync(EC_GETBYSLUG, slug, result, (int)sw.ElapsedMilliseconds);
+            return result;
         }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_GETBYSLUG, ex, slug); throw; }
+        catch (Exception ex) { sw.Stop(); await _logService.LogFunctionErrorAsync(EC_GETBYSLUG, ex, slug); throw; }
     }
 
     public async Task<List<ProductDto>> GetByCategoryAsync(int categoryId)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             var products = await _productRepo.GetByCategoryAsync(categoryId);
-            return products.Select(MapToDto).ToList();
+            var result = products.Select(MapToDto).ToList();
+            sw.Stop();
+            await _logService.LogFunctionSuccessAsync(EC_GETBYCAT, categoryId, result.Count, (int)sw.ElapsedMilliseconds);
+            return result;
         }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_GETBYCAT, ex, categoryId); throw; }
+        catch (Exception ex) { sw.Stop(); await _logService.LogFunctionErrorAsync(EC_GETBYCAT, ex, categoryId); throw; }
     }
 
     public async Task<List<ProductDto>> GetFeaturedAsync()
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             var products = await _productRepo.GetFeaturedProductsAsync(8);
-            return products.Select(MapToDto).ToList();
+            var result = products.Select(MapToDto).ToList();
+            sw.Stop();
+            await _logService.LogFunctionSuccessAsync(EC_GETFEAT, null, result.Count, (int)sw.ElapsedMilliseconds);
+            return result;
         }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_GETFEAT, ex); throw; }
+        catch (Exception ex) { sw.Stop(); await _logService.LogFunctionErrorAsync(EC_GETFEAT, ex); throw; }
     }
 
-    public async Task<ProductDto> CreateAsync(ProductCreateDto dto, Guid userId)
+    public async Task<ProductDto> CreateAsync(ProductCreateDto dto)
     {
         try
         {
@@ -126,7 +147,6 @@ public class ProductManager : IProductService
 
             var product = new Product
             {
-                SellerId = userId,
                 CategoryId = category.Id,
                 Title = cleanTitle,
                 Slug = uniqueSlug,
@@ -161,17 +181,14 @@ public class ProductManager : IProductService
             return dtoResult;
         }
         catch (BusinessException) { throw; }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_CREATE, ex, dto, userId); throw; }
+        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_CREATE, ex, dto); throw; }
     }
 
-    public async Task<ProductDto> UpdateAsync(Guid id, ProductUpdateDto dto, Guid userId)
+    public async Task<ProductDto> UpdateAsync(Guid id, ProductUpdateDto dto)
     {
         try
         {
             var product = await _productRepo.GetByIdAsync(id) ?? throw new NotFoundException("Ürün", id);
-            
-            if (product.SellerId != userId)
-                throw new UnauthorizedException();
 
             var cleanTitle = _moderationService.SanitizeHtml(dto.Title);
             var cleanDesc = _moderationService.SanitizeHtml(dto.Description);
@@ -216,18 +233,14 @@ public class ProductManager : IProductService
             return dtoResult;
         }
         catch (NotFoundException) { throw; }
-        catch (UnauthorizedException) { throw; }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_UPDATE, ex, dto, userId); throw; }
+        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_UPDATE, ex, dto); throw; }
     }
 
-    public async Task DeleteAsync(Guid id, Guid userId)
+    public async Task DeleteAsync(Guid id)
     {
         try
         {
             var product = await _productRepo.GetByIdAsync(id) ?? throw new NotFoundException("Ürün", id);
-            
-            if (product.SellerId != userId)
-                throw new UnauthorizedException();
 
             _productRepo.Delete(product);
             await _productRepo.SaveChangesAsync();
@@ -236,18 +249,7 @@ public class ProductManager : IProductService
             await _searchService.DeleteProductIndexAsync(id);
         }
         catch (NotFoundException) { throw; }
-        catch (UnauthorizedException) { throw; }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_DELETE, ex, id, userId); throw; }
-    }
-
-    public async Task<List<ProductDto>> GetMyProductsAsync(Guid userId)
-    {
-        try
-        {
-            var products = await _productRepo.FindAsync(p => p.SellerId == userId); // Detaylar eklenebilir
-            return products.Select(MapToDto).ToList();
-        }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_GETMY, ex, userId); throw; }
+        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_DELETE, ex, id); throw; }
     }
 
     private async Task<string> GenerateUniqueSlugAsync(string baseSlug, Guid? excludeId = null)
@@ -264,8 +266,6 @@ public class ProductManager : IProductService
 
     private static ProductDto MapToDto(Product p) => new(
         Id: p.Id,
-        SellerId: p.SellerId,
-        SellerName: p.Seller?.FullName ?? "",
         CategoryId: p.CategoryId,
         CategoryName: p.Category?.Name ?? "",
         Title: p.Title,

@@ -1,0 +1,70 @@
+@using ETicaret.Business.Interfaces
+@inject ICartService CartService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+@if (itemCount > 0)
+
+{
+    <span class="cart-badge">@itemCount</span>
+}
+
+@code {
+    private int itemCount = 0;
+
+
+
+    protected override async Task OnInitializedAsync()
+
+    {
+
+        await LoadCartCountAsync();
+
+    }
+
+
+
+    private async Task LoadCartCountAsync()
+
+    {
+
+        try
+
+        {
+
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+
+            var user = authState.User;
+
+
+
+            if (user.Identity != null && user.Identity.IsAuthenticated)
+
+            {
+
+                itemCount = await CartService.GetCartItemCountAsync(null, null);
+
+            }
+
+            else
+
+            {
+
+                // Misafir için TODO: Cookie veya LocalStorage'dan guestId alınıp istek yapılacak.
+
+                itemCount = 0;
+
+            }
+
+        }
+
+        catch
+
+        {
+
+            itemCount = 0;
+
+        }
+
+    }
+}

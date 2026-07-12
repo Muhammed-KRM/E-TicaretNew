@@ -11,6 +11,12 @@ public record OrderDto(
     decimal DiscountAmount,
     decimal TotalPrice,
     string? TrackingNumber,
+    string? ReturnReason,
+    string? CancellationReason,
+    string? AdminReturnNote,
+    DateTime? ReturnRequestedAt,
+    DateTime? RefundedAt,
+    decimal? RefundAmount,
     List<OrderItemDto> Items
 );
 
@@ -39,3 +45,13 @@ public record OrderResultDto(
     string OrderNumber,
     string PaymentUrl
 );
+
+public class ReturnRequestDto
+{
+    public string ReturnReason { get; set; } = string.Empty;
+}
+
+public class ProcessReturnDto
+{
+    public string? AdminNote { get; set; }
+}

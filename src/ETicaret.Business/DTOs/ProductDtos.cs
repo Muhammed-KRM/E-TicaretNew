@@ -5,8 +5,6 @@ namespace ETicaret.Business.DTOs;
 
 public record ProductDto(
     Guid Id,
-    Guid SellerId,
-    string SellerName,
     int CategoryId,
     string CategoryName,
     string Title,

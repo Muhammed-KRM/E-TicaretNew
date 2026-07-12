@@ -78,7 +78,6 @@
                                 <th>E-posta</th>
                                 <th>Rol</th>
                                 <th>Durum</th>
-                                <th>Jeton</th>
                                 <th>Kayıt Tarihi</th>
                                 <th>İşlemler</th>
                             </tr>
@@ -103,10 +102,6 @@
                                             </div>
                                             <div>
                                                 <div class="fw-semibold">@user.FullName</div>
-                                                @if (user.IsTeacherProfileComplete)
-                                                {
-                                                    <small class="text-success">Öğretmen</small>
-                                                }
                                             </div>
                                         </div>
                                     </td>
@@ -135,9 +130,6 @@
                                         {
                                             <span class="badge bg-secondary">Pasif</span>
                                         }
-                                    </td>
-                                    <td>
-                                        <span class="fw-semibold">@user.TokenBalance</span>
                                     </td>
                                     <td>
                                         @user.CreatedAt.ToString("dd.MM.yyyy")

@@ -13,9 +13,9 @@ public class ReviewApiService : IReviewService
         _http = http;
     }
 
-    public async Task<List<ReviewDto>> GetByListingAsync(Guid listingId)
+    public async Task<List<ReviewDto>> GetByProductAsync(Guid productId)
     {
-        return await _http.GetFromJsonAsync<List<ReviewDto>>($"api/reviews/listing/{listingId}") ?? new List<ReviewDto>();
+        return await _http.GetFromJsonAsync<List<ReviewDto>>($"api/reviews/product/{productId}") ?? new List<ReviewDto>();
     }
 
     public async Task<ReviewDto> CreateAsync(ReviewCreateDto dto, Guid reviewerId)
@@ -28,6 +28,12 @@ public class ReviewApiService : IReviewService
     public Task ApproveReviewAsync(Guid reviewId)
     {
         throw new NotImplementedException("Yetkilendirme gerektiren Admin işlemi.");
+    }
+    
+    public async Task DeleteReviewAsync(Guid reviewId, Guid userId)
+    {
+        var response = await _http.DeleteAsync($"api/reviews/{reviewId}");
+        response.EnsureSuccessStatusCode();
     }
 }
 

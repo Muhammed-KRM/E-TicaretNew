@@ -2,38 +2,38 @@ services:
   web:
     build:
       context: .
-      dockerfile: src/OzelDers.Web/Dockerfile
+      dockerfile: src/ETicaret.Web/Dockerfile
     ports: ["8080:8080"]
     depends_on: [postgres, redis]
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=ozelders;Username=ozelders_user;Password=${DB_PASSWORD:?DB_PASSWORD is required}
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=ETicaret;Username=ETicaret_user;Password=${DB_PASSWORD:-dev_password}
 
   api:
     build:
       context: .
-      dockerfile: src/OzelDers.API/Dockerfile
+      dockerfile: src/ETicaret.API/Dockerfile
     ports: ["5001:8080"]
     depends_on: [postgres, redis, rabbitmq]
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=ozelders;Username=ozelders_user;Password=${DB_PASSWORD:?DB_PASSWORD is required}
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=ETicaret;Username=ETicaret_user;Password=${DB_PASSWORD:-dev_password}
       - Redis__ConnectionString=redis:6379
-      - Jwt__Issuer=OzelDers.API
-      - Jwt__Audience=OzelDers.Clients
-      - Jwt__Key=${JWT_KEY:?JWT_KEY is required}
-      - Encryption__AesKey=${AES_KEY:?AES_KEY is required}
-      - AdminSeed__Email=${ADMIN_EMAIL:?ADMIN_EMAIL is required}
-      - AdminSeed__Password=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      - Jwt__Issuer=ETicaret.API
+      - Jwt__Audience=ETicaret.Clients
+      - Jwt__Key=${JWT_KEY:-SUPER_SECRET_MIN_32_CHARS_LONG_KEY}
+      - Encryption__AesKey=${AES_KEY:-SUPER_SECRET_MIN_32_CHARS_LONG_KEY}
+      - AdminSeed__Email=${ADMIN_EMAIL:-admin@eticaret.com}
+      - AdminSeed__Password=${ADMIN_PASSWORD:-Admin123!}
 
   worker:
     build:
       context: .
-      dockerfile: src/OzelDers.Worker/Dockerfile
+      dockerfile: src/ETicaret.Worker/Dockerfile
     depends_on: [postgres, redis, rabbitmq, ollama]
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=ozelders;Username=ozelders_user;Password=${DB_PASSWORD:?DB_PASSWORD is required}
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=ETicaret;Username=ETicaret_user;Password=${DB_PASSWORD:-dev_password}
       - Redis__ConnectionString=redis:6379
 
   nginx:
@@ -49,16 +49,16 @@ services:
     ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     environment:
-      POSTGRES_DB: ozelders
-      POSTGRES_USER: ozelders_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ETicaret
+      POSTGRES_USER: ETicaret_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password}
 
   elasticsearch:
     image: elasticsearch:8.12.0
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=true
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:?ELASTIC_PASSWORD is required}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_password_123}
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
     ports: ["9200:9200"]
     volumes: [esdata:/usr/share/elasticsearch/data]

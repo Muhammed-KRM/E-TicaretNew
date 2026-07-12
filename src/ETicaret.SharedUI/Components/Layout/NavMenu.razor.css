@@ -472,3 +472,6 @@
     background: var(--color-primary-light);
     border-color: var(--color-primary);
 }
+
+.cart-badge { background-color: var(--color-accent); color: white; border-radius: var(--radius-full); padding: 0.1rem 0.4rem; font-size: 0.75rem; font-weight: 700; position: absolute; transform: translate(10px, -10px); }
+

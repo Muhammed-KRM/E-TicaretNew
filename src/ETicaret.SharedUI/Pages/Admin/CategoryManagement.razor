@@ -1,0 +1,36 @@
+@page "/admin/kategoriler"
+@inject ICategoryService CategoryService
+
+<PageTitle>Kategori Yönetimi | ETicaret.com Admin</PageTitle>
+
+<div class="container padding-y-xl">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Kategori Yönetimi</h1>
+        <button class="btn btn-primary">➕ Yeni Kategori Ekle</button>
+    </div>
+
+    <div class="glass" style="border-radius: var(--radius-lg); padding: 1.5rem; overflow-x: auto;">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Sıra</th>
+                    <th>Kategori Adı</th>
+                    <th>Üst Kategori</th>
+                    <th>Slug</th>
+                    <th>Durum</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Liste buraya gelecek -->
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">Henüz kategori bulunmamaktadır.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    
+}

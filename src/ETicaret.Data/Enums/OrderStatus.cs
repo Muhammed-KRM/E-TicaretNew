@@ -24,6 +24,18 @@ public enum OrderStatus
     Cancelled = 5,
     
     /// <summary>İade edildi / Ücret iadesi yapıldı.</summary>
-    Refunded = 6
+    Refunded = 6,
+    
+    /// <summary>İade talep edildi.</summary>
+    ReturnRequested = 7,
+    
+    /// <summary>İade talebi reddedildi.</summary>
+    ReturnRejected = 8,
+    
+    /// <summary>Kısmen iade edildi.</summary>
+    PartiallyRefunded = 9,
+    
+    /// <summary>Ödeme başarısız.</summary>
+    Failed = 10
 }
 

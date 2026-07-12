@@ -8,8 +8,12 @@ public class FunctionLog
     public string MethodName { get; set; } = string.Empty;
     public string? FilePath { get; set; }
     public int LineNumber { get; set; }
+    public string? OutputType { get; set; }
+    public string? OutputValue { get; set; }
     public string? ErrorMessage { get; set; }
     public string? StackTrace { get; set; }
+    public bool IsSuccess { get; set; } = true;
+    public int DurationMs { get; set; }
     public string? InputType { get; set; }
     public string? InputValue { get; set; }
     public Guid? UserId { get; set; }
@@ -17,4 +21,3 @@ public class FunctionLog
     public string Severity { get; set; } = "Error";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
-

@@ -1,0 +1,134 @@
+@page "/panel/siparislerim"
+@inject IOrderService OrderService
+
+<PageTitle>Siparişlerim | ETicaret.com</PageTitle>
+
+<div class="container padding-y-xl">
+    <h1 class="mb-4">Siparişlerim</h1>
+
+    @if (isLoading)
+
+    {
+        <div class="text-center padding-xl">Yükleniyor...</div>
+    }
+
+    else if (!orders.Any())
+
+    {
+        <div class="text-center padding-xl glass" style="border-radius: var(--radius-lg);">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">📦</div>
+            <h3>Henüz siparişiniz bulunmuyor.</h3>
+            <a href="/arama" class="btn btn-primary mt-3">Alışverişe Başla</a>
+        </div>
+    }
+
+    else
+
+    {
+        <div class="glass" style="border-radius: var(--radius-lg); padding: 1.5rem; overflow-x: auto;">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Sipariş No</th>
+                        <th>Tarih</th>
+                        <th>Tutar</th>
+                        <th>Durum</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in orders)
+                    {
+                        <tr>
+                            <td><strong>#@order.Id.ToString().Substring(0,8).ToUpper()</strong></td>
+                            <td>@order.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                            <td style="font-weight: 600;">@order.TotalPrice.ToString("C2")</td>
+                            <td>
+                                @if (order.Status == "Pending")
+
+                                {
+                                    <span class="badge bg-warning text-dark">Bekliyor</span>
+                                }
+
+                                else if (order.Status == "Approved")
+
+                                {
+                                    <span class="badge bg-info text-dark">Onaylandı</span>
+                                }
+
+                                else if (order.Status == "Shipped")
+
+                                {
+                                    <span class="badge bg-primary">Kargoya Verildi</span>
+                                }
+
+                                else if (order.Status == "Delivered")
+
+                                {
+                                    <span class="badge bg-success">Teslim Edildi</span>
+                                }
+
+                                else if (order.Status == "Cancelled")
+
+                                {
+                                    <span class="badge bg-danger">İptal Edildi</span>
+                                }
+
+                                else if (order.Status == "Returned")
+
+                                {
+                                    <span class="badge bg-secondary">İade Edildi</span>
+                                }
+                            </td>
+                            <td>
+                                <a href="/siparis-takip/@order.Id" class="btn btn-outline-primary btn-sm">Detay / Takip</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<OrderDto> orders = new();
+
+    private bool isLoading = true;
+
+
+
+    protected override async Task OnInitializedAsync()
+
+    {
+
+        isLoading = true;
+
+        try
+
+        {
+
+            // Kullanıcı id'si AuthState'den alınacak. Şimdilik Guid.Empty ile mock çalışsın
+
+            orders = await OrderService.GetMyOrdersAsync(Guid.Empty);
+
+        }
+
+        catch
+
+        {
+
+            orders = new List<OrderDto>();
+
+        }
+
+        finally
+
+        {
+
+            isLoading = false;
+
+        }
+
+    }
+}

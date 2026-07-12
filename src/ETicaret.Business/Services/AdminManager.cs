@@ -131,10 +131,10 @@ public class AdminManager : IAdminService
     {
         try
         {
-            var query = _context.Products.Include(p => p.Seller).Include(p => p.Category).AsQueryable();
+            var query = _context.Products.Include(p => p.Category).AsQueryable();
             
             if (!string.IsNullOrWhiteSpace(search))
-                query = query.Where(p => p.Title.Contains(search) || p.Seller.FullName.Contains(search));
+                query = query.Where(p => p.Title.Contains(search));
                 
             if (!string.IsNullOrWhiteSpace(status))
             {
@@ -146,7 +146,6 @@ public class AdminManager : IAdminService
             {
                 Id = p.Id, 
                 Title = p.Title, 
-                SellerName = p.Seller.FullName, 
                 Category = p.Category.Name,
                 Price = p.Price,
                 StockQuantity = p.StockQuantity,
@@ -164,23 +163,11 @@ public class AdminManager : IAdminService
     {
         try
         {
-            var product = await _context.Products.Include(p => p.Seller).FirstOrDefaultAsync(p => p.Id == productId);
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId);
             if (product != null)
             {
                 product.IsActive = true;
                 await _context.SaveChangesAsync();
-
-                if (product.Seller != null)
-                    _ = _publishEndpoint.Publish(new SendNotificationEvent
-                    {
-                        UserId = product.SellerId,
-                        Type = "ProductApproved",
-                        Title = "Ürününüz Onaylandı ✅",
-                        Message = $"\"{product.Title}\" başlıklı ürününüz onaylandı ve satışta.",
-                        ActionUrl = $"/urun/{product.Slug}",
-                        SendEmail = true,
-                        UserEmail = product.Seller.Email
-                    });
             }
         }
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_APPROVEPRODUCT, ex, productId); throw; }
@@ -190,23 +177,11 @@ public class AdminManager : IAdminService
     {
         try
         {
-            var product = await _context.Products.Include(p => p.Seller).FirstOrDefaultAsync(p => p.Id == productId);
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId);
             if (product != null)
             {
                 product.IsActive = false;
                 await _context.SaveChangesAsync();
-
-                if (product.Seller != null)
-                    _ = _publishEndpoint.Publish(new SendNotificationEvent
-                    {
-                        UserId = product.SellerId,
-                        Type = "ProductRejected",
-                        Title = "Ürününüz Reddedildi ❌",
-                        Message = $"\"{product.Title}\" başlıklı ürününüz admin tarafından reddedildi.",
-                        ActionUrl = "/panel/urunlerim",
-                        SendEmail = true,
-                        UserEmail = product.Seller.Email
-                    });
             }
         }
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_REJECTPRODUCT, ex, productId); throw; }

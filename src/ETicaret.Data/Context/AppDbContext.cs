@@ -29,7 +29,8 @@ public class AppDbContext : DbContext
     public DbSet<FunctionLog> FunctionLogs => Set<FunctionLog>();
     public DbSet<ViolationLog> ViolationLogs => Set<ViolationLog>();
     public DbSet<Notification> Notifications => Set<Notification>();
-
+    public DbSet<ContactInfo> ContactInfo => Set<ContactInfo>();
+    public DbSet<ContactMessage> ContactMessages => Set<ContactMessage>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

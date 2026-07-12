@@ -99,8 +99,6 @@ public class ElasticsearchService : ISearchService
             TotalCount = (int)searchResponse.Total,
             Items = searchResponse.Documents.Select(d => new ProductDto(
                 Id: d.Id,
-                SellerId: Guid.Empty, // ElasticSearch'te tutulmuyor
-                SellerName: "",
                 CategoryId: 0,
                 CategoryName: d.CategoryName,
                 Title: d.Title,

@@ -1,0 +1,177 @@
+@page "/sepet"
+@inject ICartService CartService
+@inject NavigationManager NavManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Sepetim | ETicaret.com</PageTitle>
+
+<div class="container padding-y-xl">
+    <h1 class="mb-4">Sepetim</h1>
+
+    @if (isLoading)
+    {
+        <div class="text-center padding-xl">Yükleniyor...</div>
+    }
+    else if (cart == null || !cart.Items.Any())
+    {
+        <div class="text-center padding-xl glass" style="border-radius: var(--radius-lg);">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">🛒</div>
+            <h3>Sepetiniz şu an boş.</h3>
+            <p class="text-muted">Binlerce ürün arasından hemen alışverişe başlayın!</p>
+            <a href="/arama" class="btn btn-primary mt-3">Alışverişe Başla</a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <!-- Sol Panel: Sepet Ürünleri -->
+            <div class="col-md-8">
+                <div class="cart-items glass" style="border-radius: var(--radius-lg); padding: 1.5rem;">
+                    <table class="table table-borderless align-middle">
+                        <thead style="border-bottom: 1px solid var(--color-border);">
+                            <tr>
+                                <th>Ürün</th>
+                                <th>Fiyat</th>
+                                <th>Adet</th>
+                                <th>Toplam</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in cart.Items)
+                            {
+                                <tr style="border-bottom: 1px solid var(--color-border);">
+                                    <td>
+                                        <div class="d-flex align-items-center gap-3 py-3">
+                                            <div class="product-thumb" style="width: 60px; height: 60px; background: #f8f9fa; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">📦</div>
+                                            <div>
+                                                <div style="font-weight: 600;">@item.ProductTitle</div>
+                                                <small class="text-muted">Birim Fiyat: @item.UnitPrice.ToString("C2")</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center" style="max-width: 120px;">
+                                            <button class="btn btn-outline-secondary btn-sm" @onclick="() => UpdateQuantity(item.ProductId, item.Quantity - 1)">-</button>
+                                            <input type="number" class="form-control form-control-sm text-center mx-2" value="@item.Quantity" @onchange="@((ChangeEventArgs e) => UpdateQuantity(item.ProductId, int.Parse(e.Value?.ToString() ?? "1")))" />
+                                            <button class="btn btn-outline-secondary btn-sm" @onclick="() => UpdateQuantity(item.ProductId, item.Quantity + 1)">+</button>
+                                        </div>
+                                    </td>
+                                    <td class="text-end" style="font-weight: 600;">@item.SubTotal.ToString("C2")</td>
+                                    <td>
+                                        <button class="btn btn-link text-danger p-0" @onclick="() => RemoveItem(item.ProductId)" title="Kaldır">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <div class="text-end mt-3">
+                        <button class="btn btn-outline-danger btn-sm" @onclick="ClearCart">Sepeti Temizle</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sağ Panel: Sipariş Özeti -->
+            <div class="col-md-4 mt-4 mt-md-0">
+                <div class="order-summary glass" style="border-radius: var(--radius-lg); padding: 1.5rem; position: sticky; top: 100px;">
+                    <h3 class="mb-4">Sipariş Özeti</h3>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Ara Toplam (@cart.Items.Sum(x => x.Quantity) Ürün)</span>
+                        <span style="font-weight: 600;">@cart.TotalPrice.ToString("C2")</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted">Kargo</span>
+                        <span style="font-weight: 600; color: var(--color-accent);">Ücretsiz</span>
+                    </div>
+
+                    <div class="input-group mb-4">
+                        <input type="text" class="form-control" placeholder="İndirim Kodu" />
+                        <button class="btn btn-outline-secondary">Uygula</button>
+                    </div>
+
+                    <hr style="border-color: var(--color-border);" />
+
+                    <div class="d-flex justify-content-between mb-4 mt-3">
+                        <span style="font-size: 1.2rem; font-weight: 700;">Toplam:</span>
+                        <span style="font-size: 1.5rem; font-weight: 800; color: var(--color-primary);">@cart.TotalPrice.ToString("C2")</span>
+                    </div>
+
+                    <button class="btn btn-primary w-100" style="background-color: var(--color-accent); border-color: var(--color-accent); font-weight: 600; padding: 0.8rem;" @onclick="GoToCheckout">
+                        Ödemeye Geç
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private CartDto? cart;
+    private bool isLoading = true;
+    private string? guestId = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCartAsync();
+    }
+
+    private async Task LoadCartAsync()
+    {
+        isLoading = true;
+        try
+        {
+            cart = await CartService.GetCartAsync(null, guestId);
+        }
+        catch
+        {
+            cart = new CartDto(new List<CartItemDto>(), 0, 0);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task UpdateQuantity(Guid productId, int quantity)
+    {
+        if (quantity < 1)
+        {
+            await RemoveItem(productId);
+            return;
+        }
+
+        try
+        {
+            await CartService.UpdateQuantityAsync(null, guestId, productId, quantity);
+            await LoadCartAsync();
+        }
+        catch { }
+    }
+
+    private async Task RemoveItem(Guid productId)
+    {
+        try
+        {
+            await CartService.RemoveItemAsync(null, guestId, productId);
+            await LoadCartAsync();
+        }
+        catch { }
+    }
+
+    private async Task ClearCart()
+    {
+        try
+        {
+            await CartService.ClearCartAsync(null, guestId);
+            await LoadCartAsync();
+        }
+        catch { }
+    }
+    private void GoToCheckout()
+    {
+        NavManager.NavigateTo("/odeme");
+    }
+}
