@@ -34,4 +34,13 @@ public class ProductRepository : GenericRepository<Product>, IProductRepository
             .Where(p => p.CategoryId == categoryId)
             .ToListAsync();
     }
+
+    public async Task<List<Product>> GetFeaturedProductsAsync(int count)
+    {
+        return await GetActiveWithDetailsQueryable()
+            .Where(p => p.IsFeatured)
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(count)
+            .ToListAsync();
+    }
 }

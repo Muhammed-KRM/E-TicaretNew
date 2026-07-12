@@ -14,7 +14,7 @@ public static class ElasticsearchExtensions
         {
             var configuration = sp.GetRequiredService<IConfiguration>();
             var url = configuration["Elasticsearch:Url"] ?? "http://localhost:9200";
-            var defaultIndex = configuration["Elasticsearch:DefaultIndex"] ?? "listings";
+            var defaultIndex = configuration["Elasticsearch:DefaultIndex"] ?? "products";
 
             var settings = new ElasticsearchClientSettings(new Uri(url))
                 .DefaultIndex(defaultIndex)
@@ -22,8 +22,6 @@ public static class ElasticsearchExtensions
 
             var client = new ElasticsearchClient(settings);
             
-            // Note: In production you might want to run CreateIndex in an IHostedService,
-            // but for simplicity we do it synchronously here on first resolve
             CreateIndexIfNotExists(client, defaultIndex).GetAwaiter().GetResult();
             
             return client;
@@ -50,26 +48,19 @@ public static class ElasticsearchExtensions
                 )
             )
             .Mappings(m => m
-                .Properties<Models.ListingDocument>(p => p
+                .Properties<Models.ProductDocument>(p => p
                     .Keyword(k => k.Id)
                     .Text(t => t.Title, t => t.Analyzer("turkish_analyzer"))
                     .Text(t => t.Description, t => t.Analyzer("turkish_analyzer"))
-                    .Text(t => t.TeacherName, t => t.Analyzer("turkish_analyzer"))
-                    .Keyword(k => k.BranchSlug)
-                    .Text(t => t.BranchName, t => t.Analyzer("turkish_analyzer"))
-                    .Keyword(k => k.CitySlug)
-                    .Keyword(k => k.DistrictSlug)
-                    .IntegerNumber(n => n.HourlyPrice)
-                    .Keyword(k => k.LessonType)
-                    .Boolean(b => b.IsVitrin)
-                    .Date(d => d.VitrinExpiresAt)
+                    .Text(t => t.CategoryName, t => t.Analyzer("turkish_analyzer"))
+                    .Keyword(k => k.Brand)
+                    .DoubleNumber(n => n.Price)
                     .FloatNumber(f => f.AverageRating)
-                    .IntegerNumber(n => n.ReviewCount)
-                    .Keyword(k => k.Status)
+                    .IntegerNumber(n => n.StockQuantity)
+                    .Boolean(b => b.IsFeatured)
                     .Date(d => d.CreatedAt)
                 )
             )
         );
     }
 }
-

@@ -6,12 +6,12 @@ public class OrderItem
     public Guid OrderId { get; set; }
     public Guid ProductId { get; set; }
     
-    // Ürün ismi değişirse siparişteki kayıt etkilenmemesi için
-    public string ProductTitle { get; set; } = string.Empty;
+    public string ProductName { get; set; } = string.Empty;
     public string? ProductImageUrl { get; set; }
     
     public decimal UnitPrice { get; set; }
     public int Quantity { get; set; }
+    public decimal TotalPrice { get; set; }
 
     // Navigation Properties
     public Order Order { get; set; } = null!;

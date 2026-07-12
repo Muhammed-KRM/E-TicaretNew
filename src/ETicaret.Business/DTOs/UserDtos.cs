@@ -8,10 +8,9 @@ public class UserDto
     public Guid Id { get; set; }
     public string Email { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
-    public bool IsTeacherProfileComplete { get; set; }
     public string? ProfileImageUrl { get; set; }
     public string? Bio { get; set; }
-    public int TokenBalance { get; set; }
+    public decimal WalletBalance { get; set; }
     public string Role { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }
@@ -90,16 +89,6 @@ public class PersonalInfoDto
     public DateTime? BirthDate { get; set; }
 }
 
-public class PaymentInfoDto
-{
-    [Required(ErrorMessage = "IBAN zorunludur.")]
-    [StringLength(34, MinimumLength = 26, ErrorMessage = "Geçerli bir IBAN giriniz.")]
-    public string IBAN { get; set; } = string.Empty;
-
-    [Required(ErrorMessage = "Hesap sahibi adı zorunludur.")]
-    public string AccountHolderName { get; set; } = string.Empty;
-}
-
 public class PasswordChangeDto
 {
     [Required(ErrorMessage = "Mevcut şifre zorunludur.")]
@@ -124,7 +113,6 @@ public class NotificationSettingsDto
 public class UserProfileDto
 {
     public PersonalInfoDto PersonalInfo { get; set; } = new();
-    public PaymentInfoDto PaymentInfo { get; set; } = new();
     public NotificationSettingsDto NotificationSettings { get; set; } = new();
 }
 
@@ -134,4 +122,3 @@ public class UserActivityDto
     public string Description { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }
-

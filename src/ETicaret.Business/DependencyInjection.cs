@@ -9,51 +9,52 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddBusinessServices(this IServiceCollection services)
     {
-        // Manager'lar (Servisler)
+        // Core Services
         services.AddScoped<IAuthService, AuthManager>();
-        services.AddScoped<IListingService, ListingManager>();
-        services.AddScoped<ITokenService, TokenManager>();
-        services.AddScoped<IMessageService, MessageManager>();
-        services.AddScoped<IReviewService, ReviewManager>();
-        services.AddScoped<IVitrinService, VitrinManager>();
         services.AddScoped<IUserService, UserManager>();
         services.AddScoped<IAdminService, AdminManager>();
         services.AddScoped<ISettingService, SettingManager>();
         services.AddScoped<ILogService, LogManager>();
-        services.AddMemoryCache();
         services.AddScoped<IEmailService, ETicaret.Business.Infrastructure.Email.SmtpEmailService>();
         services.AddScoped<IModerationService, ModerationManager>();
+        
+        // E-Commerce Services
+        services.AddScoped<IProductService, ProductManager>();
+        services.AddScoped<ICategoryService, CategoryManager>();
+        services.AddScoped<ICartService, CartManager>();
+        services.AddScoped<IOrderService, OrderManager>();
+        services.AddScoped<IAddressService, AddressManager>();
+        services.AddScoped<ICouponService, CouponManager>();
+        services.AddScoped<IReviewService, ReviewManager>();
 
-        // Bildirim Sistemi
+        services.AddMemoryCache();
+
+        // Notification Services
         services.AddScoped<INotificationService, NotificationManager>();
         services.AddScoped<ISmsService, ETicaret.Business.Infrastructure.Sms.NetgsmSmsService>();
         services.AddScoped<ETicaret.Business.Infrastructure.Messaging.IFcmService, ETicaret.Business.Infrastructure.Messaging.FcmService>();
         services.AddHttpClient("Netgsm");
         services.AddHttpClient<ETicaret.Business.Infrastructure.Messaging.FcmService>();
 
-        // FluentValidation — Bu assembly'deki tüm Validator'ları otomatik tarayıp kaydet
+        // FluentValidation — Tüm Validator'ları kaydet
         services.AddValidatorsFromAssemblyContaining<AuthManager>();
 
-        // Adım 3.2: Elasticsearch
+        // Elasticsearch
         ETicaret.Business.Infrastructure.Search.ElasticsearchExtensions.AddElasticsearch(services);
         services.AddScoped<ISearchService, ETicaret.Business.Infrastructure.Search.ElasticsearchService>();
 
-        // Adım 3.3: Redis
+        // Redis
         services.AddSingleton<ICacheService, ETicaret.Business.Infrastructure.Cache.RedisCacheService>();
 
-        // Ödeme Sistemi — Strategy + Factory Pattern (PayTR yurt içi, Stripe yurt dışı)
-        services.AddScoped<IPaymentService, ETicaret.Business.Infrastructure.Payment.PayTRPaymentService>();
-        services.AddScoped<IPaymentService, ETicaret.Business.Infrastructure.Payment.StripePaymentService>();
-        services.AddScoped<IPaymentServiceFactory, ETicaret.Business.Infrastructure.Payment.PaymentServiceFactory>();
+        // Payment
+        services.AddScoped<IPaymentService, ETicaret.Business.Infrastructure.Payment.IyzicoPaymentService>();
 
-        // Dosya Yükleme (Local → ileride Azure Blob'a geçilebilir)
+        // File Storage
         services.AddScoped<IFileStorageService, ETicaret.Business.Infrastructure.Storage.LocalFileStorageService>();
 
-        // RabbitMQ/MassTransit — RabbitMQ disabled olduğunda DummyPublishEndpoint kullanılır
-        // RabbitMQ enabled olduğunda Program.cs'deki AddMassTransit bu kaydın üzerine yazar
+        // MassTransit Dummy Publish Endpoint
         services.AddScoped<MassTransit.IPublishEndpoint, ETicaret.Business.Infrastructure.Messaging.DummyPublishEndpoint>();
         
         return services;
     }
 }
-

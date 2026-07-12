@@ -32,9 +32,9 @@ public class ExceptionHandlingMiddleware
     {
         context.Response.ContentType = "application/problem+json";
 
-        var (statusCode, title, detail) = exception switch
+        (int statusCode, string title, string detail) = exception switch
         {
-            InsufficientTokenException e => (StatusCodes.Status400BadRequest, "Yetersiz Jeton", e.Message),
+            OutOfStockException e => (StatusCodes.Status400BadRequest, "Stok Yetersiz", e.Message),
             NotFoundException e => (StatusCodes.Status404NotFound, "Bulunamadı", e.Message),
             UnauthorizedException e => (StatusCodes.Status403Forbidden, "Yetkisiz Erişim", e.Message),
             BusinessException e => (StatusCodes.Status400BadRequest, "İş Kuralı Hatası", e.Message),

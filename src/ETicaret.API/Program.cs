@@ -229,7 +229,7 @@ using (var scope = app.Services.CreateScope())
             Role = ETicaret.Data.Enums.UserRole.Admin,
             IsActive = true,
             IsEmailVerified = true,
-            TokenBalance = 0
+            WalletBalance = 0
         });
         await context.SaveChangesAsync();
         logger.LogInformation("Admin kullanıcı oluşturuldu: {Email}", adminEmail);

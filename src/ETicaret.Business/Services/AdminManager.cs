@@ -10,19 +10,17 @@ namespace ETicaret.Business.Services;
 
 public class AdminManager : IAdminService
 {
-    // ═══════════════════════════════════════════════
-    // HATA KODLARI — AdminManager (Prefix: ADM)
-    // ═══════════════════════════════════════════════
-    private const string EC_DASHBOARD      = "ADM-001"; // GetDashboardStatsAsync
-    private const string EC_GETUSERS       = "ADM-002"; // GetAllUsersAsync
-    private const string EC_SUSPENDUSER    = "ADM-003"; // SuspendUserAsync
-    private const string EC_ACTIVATEUSER   = "ADM-004"; // ActivateUserAsync
-    private const string EC_GETLISTINGS    = "ADM-005"; // GetAllListingsAsync
-    private const string EC_APPROVELISTING = "ADM-006"; // ApproveListingAsync
-    private const string EC_REJECTLISTING  = "ADM-007"; // RejectListingAsync
-    private const string EC_SUSPENDLISTING = "ADM-008"; // SuspendListingAsync
-    private const string EC_DELETELISTING  = "ADM-009"; // DeleteListingAsync
-    // ═══════════════════════════════════════════════
+    private const string EC_DASHBOARD      = "ADM-001";
+    private const string EC_GETUSERS       = "ADM-002";
+    private const string EC_SUSPENDUSER    = "ADM-003";
+    private const string EC_ACTIVATEUSER   = "ADM-004";
+    private const string EC_GETPRODUCTS    = "ADM-005";
+    private const string EC_APPROVEPRODUCT = "ADM-006";
+    private const string EC_REJECTPRODUCT  = "ADM-007";
+    private const string EC_SUSPENDPRODUCT = "ADM-008";
+    private const string EC_DELETEPRODUCT  = "ADM-009";
+    private const string EC_GETORDERS      = "ADM-010";
+    private const string EC_UPDATEORDER    = "ADM-011";
 
     private readonly AppDbContext _context;
     private readonly IPublishEndpoint _publishEndpoint;
@@ -35,69 +33,76 @@ public class AdminManager : IAdminService
         _logService = logService;
     }
 
-    // ─── Dashboard ───────────────────────────────────────────
-    public async Task<AdminDashboardDto> GetDashboardStatsAsync()
+    public async Task<AdminDashboardStatsDto> GetDashboardStatsAsync()
     {
         try
         {
-        var totalUsers = await _context.Users.CountAsync();
-        var totalTeachers = await _context.Users.CountAsync(u => u.IsTeacherProfileComplete);
-        var totalListings = await _context.Listings.CountAsync();
-        var activeListings = await _context.Listings.CountAsync(l => l.Status == ListingStatus.Active);
-        var pendingListings = await _context.Listings.CountAsync(l => l.Status == ListingStatus.Pending);
-        var totalMessages = await _context.Messages.CountAsync();
-        var totalRevenue = await _context.TokenTransactions
-            .Where(t => t.Type == TransactionType.Purchase)
-            .SumAsync(t => (decimal)t.Amount);
+            var totalUsers = await _context.Users.CountAsync();
+            var totalProducts = await _context.Products.CountAsync();
+            var totalOrders = await _context.Orders.CountAsync();
+            
+            var totalRevenue = await _context.Orders
+                .Where(o => o.Status == OrderStatus.Delivered || o.Status == OrderStatus.Shipped || o.Status == OrderStatus.Preparing)
+                .SumAsync(o => o.TotalPrice);
 
-        return new AdminDashboardDto
-        {
-            TotalUsers = totalUsers, TotalTeachers = totalTeachers, TotalStudents = totalUsers - totalTeachers,
-            TotalListings = totalListings, ActiveListings = activeListings, PendingListings = pendingListings,
-            TotalMessages = totalMessages, TotalRevenue = totalRevenue,
-            RecentActivities = new List<AdminActivityDto>()
-        };
+            var activeUsers = await _context.Users.CountAsync(u => u.IsActive);
+            var pendingOrders = await _context.Orders.CountAsync(o => o.Status == OrderStatus.Pending);
+            var pendingProducts = await _context.Products.CountAsync(p => !p.IsActive); // veya özel bir statü varsa
+            var totalViolations = await _context.Users.SumAsync(u => u.ViolationCount);
+
+            return new AdminDashboardStatsDto
+            {
+                TotalUsers = totalUsers,
+                TotalProducts = totalProducts,
+                TotalOrders = totalOrders,
+                TotalRevenue = totalRevenue,
+                ActiveUsers = activeUsers,
+                PendingOrders = pendingOrders,
+                PendingProducts = pendingProducts,
+                TotalViolations = totalViolations
+            };
         }
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_DASHBOARD, ex); throw; }
     }
 
-    // ─── Kullanıcı Yönetimi ──────────────────────────────────
     public async Task<List<AdminUserDto>> GetAllUsersAsync(string? search = null, string? role = null, string? status = null)
     {
         try
         {
-        var query = _context.Users.AsQueryable();
-        if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(u => u.FullName.Contains(search) || u.Email.Contains(search));
-        if (!string.IsNullOrWhiteSpace(role))
-        {
-            if (role == "Teacher") query = query.Where(u => u.IsTeacherProfileComplete);
-            else if (role == "Admin") query = query.Where(u => u.Role == UserRole.Admin);
-            else if (role == "Student") query = query.Where(u => !u.IsTeacherProfileComplete && u.Role != UserRole.Admin);
-        }
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            if (status == "Active") query = query.Where(u => u.IsActive);
-            else if (status == "Suspended") query = query.Where(u => !u.IsActive);
-        }
-        return await query.OrderByDescending(u => u.CreatedAt).Select(u => new AdminUserDto
-        {
-            Id = u.Id, 
-            FullName = u.FullName, 
-            Email = u.Email, 
-            Phone = u.PhoneEncrypted ?? "—",
-            Role = u.Role == UserRole.Admin ? "Admin" : (u.IsTeacherProfileComplete ? "Teacher" : "Student"),
-            Status = u.IsActive ? "Active" : "Suspended", 
-            IsActive = u.IsActive,
-            IsEmailVerified = u.IsEmailVerified,
-            IsTeacherProfileComplete = u.IsTeacherProfileComplete,
-            TokenBalance = u.TokenBalance,
-            ViolationCount = u.ViolationCount,
-            BannedUntil = u.BannedUntil,
-            BanReason = u.BanReason,
-            ProfileImageUrl = u.ProfileImageUrl,
-            CreatedAt = u.CreatedAt
-        }).ToListAsync();
+            var query = _context.Users.AsQueryable();
+            
+            if (!string.IsNullOrWhiteSpace(search))
+                query = query.Where(u => u.FullName.Contains(search) || u.Email.Contains(search));
+                
+            if (!string.IsNullOrWhiteSpace(role))
+            {
+                if (Enum.TryParse<UserRole>(role, out var parsedRole))
+                    query = query.Where(u => u.Role == parsedRole);
+            }
+            
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (status == "Active") query = query.Where(u => u.IsActive);
+                else if (status == "Suspended") query = query.Where(u => !u.IsActive);
+            }
+            
+            return await query.OrderByDescending(u => u.CreatedAt).Select(u => new AdminUserDto
+            {
+                Id = u.Id, 
+                FullName = u.FullName, 
+                Email = u.Email, 
+                Phone = u.PhoneEncrypted ?? "—",
+                Role = u.Role.ToString(),
+                Status = u.IsActive ? "Active" : "Suspended", 
+                IsActive = u.IsActive,
+                IsEmailVerified = u.IsEmailVerified,
+                WalletBalance = u.WalletBalance,
+                ViolationCount = u.ViolationCount,
+                BannedUntil = u.BannedUntil,
+                BanReason = u.BanReason,
+                ProfileImageUrl = u.ProfileImageUrl,
+                CreatedAt = u.CreatedAt
+            }).ToListAsync();
         }
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_GETUSERS, ex, new { search, role, status }); throw; }
     }
@@ -106,8 +111,8 @@ public class AdminManager : IAdminService
     {
         try
         {
-        var user = await _context.Users.FindAsync(userId);
-        if (user != null) { user.IsActive = false; user.UpdatedAt = DateTime.UtcNow; await _context.SaveChangesAsync(); }
+            var user = await _context.Users.FindAsync(userId);
+            if (user != null) { user.IsActive = false; user.UpdatedAt = DateTime.UtcNow; await _context.SaveChangesAsync(); }
         }
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_SUSPENDUSER, ex, userId); throw; }
     }
@@ -116,110 +121,162 @@ public class AdminManager : IAdminService
     {
         try
         {
-        var user = await _context.Users.FindAsync(userId);
-        if (user != null) { user.IsActive = true; user.UpdatedAt = DateTime.UtcNow; await _context.SaveChangesAsync(); }
+            var user = await _context.Users.FindAsync(userId);
+            if (user != null) { user.IsActive = true; user.UpdatedAt = DateTime.UtcNow; await _context.SaveChangesAsync(); }
         }
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_ACTIVATEUSER, ex, userId); throw; }
     }
 
-    // ─── İlan Yönetimi ───────────────────────────────────────
-    public async Task<List<AdminListingDto>> GetAllListingsAsync(string? search = null, string? status = null, string? type = null)
+    public async Task<List<AdminProductDto>> GetAllProductsAsync(string? search = null, string? status = null)
     {
         try
         {
-        var query = _context.Listings.Include(l => l.Owner).Include(l => l.Branch)
-            .Include(l => l.District).ThenInclude(d => d.City).AsQueryable();
-        if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(l => l.Title.Contains(search) || l.Owner.FullName.Contains(search));
-        if (!string.IsNullOrWhiteSpace(status))
-            if (Enum.TryParse<ListingStatus>(status, out var parsed)) query = query.Where(l => l.Status == parsed);
-        if (!string.IsNullOrWhiteSpace(type))
-        {
-            if (type == "TeacherOffering") query = query.Where(l => l.Type == ListingType.TeacherOffering);
-            else if (type == "StudentLooking") query = query.Where(l => l.Type == ListingType.StudentLooking);
+            var query = _context.Products.Include(p => p.Seller).Include(p => p.Category).AsQueryable();
+            
+            if (!string.IsNullOrWhiteSpace(search))
+                query = query.Where(p => p.Title.Contains(search) || p.Seller.FullName.Contains(search));
+                
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (status == "Active") query = query.Where(p => p.IsActive);
+                else if (status == "Inactive") query = query.Where(p => !p.IsActive);
+            }
+            
+            return await query.OrderByDescending(p => p.CreatedAt).Select(p => new AdminProductDto
+            {
+                Id = p.Id, 
+                Title = p.Title, 
+                SellerName = p.Seller.FullName, 
+                Category = p.Category.Name,
+                Price = p.Price,
+                StockQuantity = p.StockQuantity,
+                Status = p.IsActive ? "Active" : "Inactive",
+                IsActive = p.IsActive,
+                ViewCount = 0, // Ürün görüntüleme tablomuz varsa güncellenir
+                SalesCount = p.SalesCount, 
+                CreatedAt = p.CreatedAt
+            }).ToListAsync();
         }
-        return await query.OrderByDescending(l => l.CreatedAt).Select(l => new AdminListingDto
-        {
-            Id = l.Id, Title = l.Title, TeacherName = l.Owner.FullName, Branch = l.Branch.Name,
-            City = l.District.City.Name, HourlyPrice = l.HourlyPrice, Status = l.Status.ToString(),
-            Type = l.Type.ToString(), IsVitrin = l.IsVitrin, ViewCount = l.ReviewCount, MessageCount = 0, CreatedAt = l.CreatedAt
-        }).ToListAsync();
-        }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_GETLISTINGS, ex, new { search, status, type }); throw; }
+        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_GETPRODUCTS, ex, new { search, status }); throw; }
     }
 
-    public async Task ApproveListingAsync(Guid listingId)
+    public async Task ApproveProductAsync(Guid productId)
     {
         try
         {
-        var listing = await _context.Listings.Include(l => l.Owner).FirstOrDefaultAsync(l => l.Id == listingId);
-        if (listing != null)
-        {
-            listing.Status = ListingStatus.Active;
-            await _context.SaveChangesAsync();
+            var product = await _context.Products.Include(p => p.Seller).FirstOrDefaultAsync(p => p.Id == productId);
+            if (product != null)
+            {
+                product.IsActive = true;
+                await _context.SaveChangesAsync();
 
-            // Onay bildirimi
-            if (listing.Owner != null)
-                _ = _publishEndpoint.Publish(new SendNotificationEvent
+                if (product.Seller != null)
+                    _ = _publishEndpoint.Publish(new SendNotificationEvent
+                    {
+                        UserId = product.SellerId,
+                        Type = "ProductApproved",
+                        Title = "Ürününüz Onaylandı ✅",
+                        Message = $"\"{product.Title}\" başlıklı ürününüz onaylandı ve satışta.",
+                        ActionUrl = $"/urun/{product.Slug}",
+                        SendEmail = true,
+                        UserEmail = product.Seller.Email
+                    });
+            }
+        }
+        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_APPROVEPRODUCT, ex, productId); throw; }
+    }
+
+    public async Task RejectProductAsync(Guid productId)
+    {
+        try
+        {
+            var product = await _context.Products.Include(p => p.Seller).FirstOrDefaultAsync(p => p.Id == productId);
+            if (product != null)
+            {
+                product.IsActive = false;
+                await _context.SaveChangesAsync();
+
+                if (product.Seller != null)
+                    _ = _publishEndpoint.Publish(new SendNotificationEvent
+                    {
+                        UserId = product.SellerId,
+                        Type = "ProductRejected",
+                        Title = "Ürününüz Reddedildi ❌",
+                        Message = $"\"{product.Title}\" başlıklı ürününüz admin tarafından reddedildi.",
+                        ActionUrl = "/panel/urunlerim",
+                        SendEmail = true,
+                        UserEmail = product.Seller.Email
+                    });
+            }
+        }
+        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_REJECTPRODUCT, ex, productId); throw; }
+    }
+
+    public async Task SuspendProductAsync(Guid productId)
+    {
+        try
+        {
+            var product = await _context.Products.FindAsync(productId);
+            if (product != null) { product.IsActive = false; await _context.SaveChangesAsync(); }
+        }
+        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_SUSPENDPRODUCT, ex, productId); throw; }
+    }
+
+    public async Task DeleteProductAsync(Guid productId)
+    {
+        try
+        {
+            var product = await _context.Products.FindAsync(productId);
+            if (product != null) { _context.Products.Remove(product); await _context.SaveChangesAsync(); }
+        }
+        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_DELETEPRODUCT, ex, productId); throw; }
+    }
+
+    public async Task<List<AdminOrderDto>> GetAllOrdersAsync(string? search = null, string? status = null)
+    {
+        try
+        {
+            var query = _context.Orders.Include(o => o.User).AsQueryable();
+            
+            if (!string.IsNullOrWhiteSpace(search))
+                query = query.Where(o => o.OrderNumber.Contains(search) || o.User.FullName.Contains(search));
+                
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (Enum.TryParse<OrderStatus>(status, out var parsedStatus))
+                    query = query.Where(o => o.Status == parsedStatus);
+            }
+            
+            return await query.OrderByDescending(o => o.CreatedAt).Select(o => new AdminOrderDto
+            {
+                Id = o.Id, 
+                OrderNumber = o.OrderNumber,
+                CustomerName = o.User.FullName,
+                TotalPrice = o.TotalPrice,
+                Status = o.Status.ToString(),
+                CreatedAt = o.CreatedAt
+            }).ToListAsync();
+        }
+        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_GETORDERS, ex, new { search, status }); throw; }
+    }
+
+    public async Task UpdateOrderStatusAsync(Guid orderId, string newStatus)
+    {
+        try
+        {
+            var order = await _context.Orders.Include(o => o.User).FirstOrDefaultAsync(o => o.Id == orderId);
+            if (order != null && Enum.TryParse<OrderStatus>(newStatus, out var parsedStatus))
+            {
+                order.Status = parsedStatus;
+                await _context.SaveChangesAsync();
+
+                _ = _publishEndpoint.Publish(new OrderStatusChangedEvent
                 {
-                    UserId = listing.OwnerId,
-                    Type = "ListingApproved",
-                    Title = "İlanınız Onaylandı ✅",
-                    Message = $"\"{listing.Title}\" başlıklı ilanınız onaylandı ve yayında.",
-                    ActionUrl = $"/ilan/{listing.Slug}",
-                    SendEmail = true,
-                    UserEmail = listing.Owner.Email
+                    OrderId = order.Id,
+                    NewStatus = parsedStatus
                 });
+            }
         }
-        }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_APPROVELISTING, ex, listingId); throw; }
-    }
-
-    public async Task RejectListingAsync(Guid listingId)
-    {
-        try
-        {
-        var listing = await _context.Listings.Include(l => l.Owner).FirstOrDefaultAsync(l => l.Id == listingId);
-        if (listing != null)
-        {
-            listing.Status = ListingStatus.Suspended;
-            await _context.SaveChangesAsync();
-
-            // Red bildirimi
-            if (listing.Owner != null)
-                _ = _publishEndpoint.Publish(new SendNotificationEvent
-                {
-                    UserId = listing.OwnerId,
-                    Type = "ListingRejected",
-                    Title = "İlanınız Reddedildi ❌",
-                    Message = $"\"{listing.Title}\" başlıklı ilanınız admin tarafından reddedildi. Düzenleyerek tekrar gönderebilirsiniz.",
-                    ActionUrl = "/panel/ilanlarim",
-                    SendEmail = true,
-                    UserEmail = listing.Owner.Email
-                });
-        }
-        }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_REJECTLISTING, ex, listingId); throw; }
-    }
-
-    public async Task SuspendListingAsync(Guid listingId)
-    {
-        try
-        {
-        var listing = await _context.Listings.FindAsync(listingId);
-        if (listing != null) { listing.Status = ListingStatus.Suspended; await _context.SaveChangesAsync(); }
-        }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_SUSPENDLISTING, ex, listingId); throw; }
-    }
-
-    public async Task DeleteListingAsync(Guid listingId)
-    {
-        try
-        {
-        var listing = await _context.Listings.FindAsync(listingId);
-        if (listing != null) { _context.Listings.Remove(listing); await _context.SaveChangesAsync(); }
-        }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_DELETELISTING, ex, listingId); throw; }
+        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_UPDATEORDER, ex, new { orderId, newStatus }); throw; }
     }
 }
-

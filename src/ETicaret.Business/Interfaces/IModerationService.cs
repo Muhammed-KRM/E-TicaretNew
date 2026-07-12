@@ -12,6 +12,10 @@ public interface IModerationService
     /// </summary>
     Task AddStrikeAsync(Guid userId, Guid? listingId, string listingTitle,
         string violationType, string detectedContent, string detectedBy);
+
+    string SanitizeHtml(string text);
+    bool ContainsPII(string text);
+    bool ContainsInappropriateContent(string text);
 }
 
 public record ModerationResult(bool IsViolation, string? ViolationType, string? Message)

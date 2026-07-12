@@ -4,8 +4,7 @@ namespace ETicaret.Business.Interfaces;
 
 public interface ISearchService
 {
-    Task<SearchResultDto> SearchAsync(SearchFilterDto filters);
-    Task IndexListingAsync(ListingDto listing);
-    Task DeleteListingIndexAsync(Guid listingId);
+    Task<ProductSearchResultDto> SearchAsync(ProductSearchFilterDto filters);
+    Task IndexProductAsync(ProductDto product);
+    Task DeleteProductIndexAsync(Guid productId);
 }
-

@@ -27,6 +27,7 @@ public class AuthManager : IAuthService
     // ═══════════════════════════════════════════════
 
     private readonly IUserRepository _userRepo;
+    private readonly IRepository<Cart> _cartRepo;
     private readonly IValidator<UserRegisterDto> _registerValidator;
     private readonly IEmailService _emailService;
     private readonly IPublishEndpoint _publishEndpoint;
@@ -35,6 +36,7 @@ public class AuthManager : IAuthService
 
     public AuthManager(
         IUserRepository userRepo,
+        IRepository<Cart> cartRepo,
         IValidator<UserRegisterDto> registerValidator,
         IEmailService emailService,
         IPublishEndpoint publishEndpoint,
@@ -42,6 +44,7 @@ public class AuthManager : IAuthService
         ILogService logService)
     {
         _userRepo = userRepo;
+        _cartRepo = cartRepo;
         _registerValidator = registerValidator;
         _emailService = emailService;
         _publishEndpoint = publishEndpoint;
@@ -53,50 +56,54 @@ public class AuthManager : IAuthService
     {
         try
         {
-        var validationResult = await _registerValidator.ValidateAsync(dto);
-        if (!validationResult.IsValid)
-            return new AuthResultDto { Success = false, ErrorMessage = string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage)) };
+            var validationResult = await _registerValidator.ValidateAsync(dto);
+            if (!validationResult.IsValid)
+                return new AuthResultDto { Success = false, ErrorMessage = string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage)) };
 
-        if (!await _userRepo.IsEmailUniqueAsync(dto.Email))
-            return new AuthResultDto { Success = false, ErrorMessage = "Bu e-posta adresi zaten kayıtlı." };
+            if (!await _userRepo.IsEmailUniqueAsync(dto.Email))
+                return new AuthResultDto { Success = false, ErrorMessage = "Bu e-posta adresi zaten kayıtlı." };
 
-        var user = new User
-        {
-            Email = dto.Email,
-            PasswordHash = PasswordHasher.Hash(dto.Password),
-            FullName = dto.FullName,
-            TokenBalance = 3
-        };
-
-        await _userRepo.AddAsync(user);
-        await _userRepo.SaveChangesAsync();
-
-        _ = _emailService.SendTemplatedEmailAsync(
-            user.Email,
-            "Hoş Geldiniz!",
-            new Dictionary<string, string> { { "FullName", user.FullName } }
-        );
-
-        // Welcome bildirimi — await ile, hata loglanır
-        try
-        {
-            await _publishEndpoint.Publish(new SendNotificationEvent
+            var user = new User
             {
-                UserId = user.Id,
-                Type = "Welcome",
-                Title = "ETicaret'e Hoş Geldiniz! 🎓",
-                Message = "Hesabınız başarıyla oluşturuldu. İlan açabilir veya öğretmen arayabilirsiniz.",
-                ActionUrl = "/arama",
-                SendEmail = false,
-                IdempotencyKey = $"welcome-{user.Id}"
-            });
-        }
-        catch (Exception ex)
-        {
-            await _logService.LogFunctionErrorAsync("AM-NOTIF", ex, new { userId = user.Id });
-        }
+                Email = dto.Email,
+                PasswordHash = PasswordHasher.Hash(dto.Password),
+                FullName = dto.FullName,
+                WalletBalance = 0
+            };
 
-        return new AuthResultDto { Success = true, User = MapToDto(user), Token = "", RefreshToken = "" };
+            await _userRepo.AddAsync(user);
+            await _userRepo.SaveChangesAsync();
+
+            // Yeni kullanıcı için boş sepet oluştur
+            await _cartRepo.AddAsync(new Cart { UserId = user.Id });
+            await _cartRepo.SaveChangesAsync();
+
+            _ = _emailService.SendTemplatedEmailAsync(
+                user.Email,
+                "Hoş Geldiniz!",
+                new Dictionary<string, string> { { "FullName", user.FullName } }
+            );
+
+            // Welcome bildirimi — await ile, hata loglanır
+            try
+            {
+                await _publishEndpoint.Publish(new SendNotificationEvent
+                {
+                    UserId = user.Id,
+                    Type = "Welcome",
+                    Title = "ETicaret'e Hoş Geldiniz! 🎓",
+                    Message = "Hesabınız başarıyla oluşturuldu. Hemen alışverişe başlayabilirsiniz.",
+                    ActionUrl = "/",
+                    SendEmail = false,
+                    IdempotencyKey = $"welcome-{user.Id}"
+                });
+            }
+            catch (Exception ex)
+            {
+                await _logService.LogFunctionErrorAsync("AM-NOTIF", ex, new { userId = user.Id });
+            }
+
+            return new AuthResultDto { Success = true, User = MapToDto(user), Token = "", RefreshToken = "" };
         }
         catch (Exception ex)
         {
@@ -109,14 +116,14 @@ public class AuthManager : IAuthService
     {
         try
         {
-        var user = await _userRepo.GetByEmailAsync(dto.Email);
-        if (user is null || !PasswordHasher.Verify(dto.Password, user.PasswordHash))
-            return new AuthResultDto { Success = false, ErrorMessage = "E-posta veya şifre hatalı." };
+            var user = await _userRepo.GetByEmailAsync(dto.Email);
+            if (user is null || !PasswordHasher.Verify(dto.Password, user.PasswordHash))
+                return new AuthResultDto { Success = false, ErrorMessage = "E-posta veya şifre hatalı." };
 
-        if (!user.IsActive)
-            return new AuthResultDto { Success = false, ErrorMessage = "Hesabınız askıya alınmıştır." };
+            if (!user.IsActive)
+                return new AuthResultDto { Success = false, ErrorMessage = "Hesabınız askıya alınmıştır." };
 
-        return new AuthResultDto { Success = true, User = MapToDto(user), Token = "", RefreshToken = "" };
+            return new AuthResultDto { Success = true, User = MapToDto(user), Token = "", RefreshToken = "" };
         }
         catch (Exception ex)
         {
@@ -143,23 +150,22 @@ public class AuthManager : IAuthService
     {
         try
         {
-        var user = await _userRepo.GetByIdAsync(userId)
-            ?? throw new NotFoundException("Kullanıcı", userId);
+            var user = await _userRepo.GetByIdAsync(userId)
+                ?? throw new NotFoundException("Kullanıcı", userId);
 
-        user.FullName = dto.FullName;
-        user.Bio = dto.Bio;
+            user.FullName = dto.FullName;
 
-        if (!string.IsNullOrWhiteSpace(dto.Phone))
-        {
-            var aesKey = _config["Encryption:AesKey"] ?? _config["Jwt:Key"] ?? "default_very_secret_aes_key_here";
-            user.PhoneEncrypted = AesEncryptionHelper.Encrypt(dto.Phone, aesKey);
-        }
+            if (!string.IsNullOrWhiteSpace(dto.Phone))
+            {
+                var aesKey = _config["Encryption:AesKey"] ?? _config["Jwt:Key"] ?? "default_very_secret_aes_key_here";
+                user.PhoneEncrypted = AesEncryptionHelper.Encrypt(dto.Phone, aesKey);
+            }
 
-        user.UpdatedAt = DateTime.UtcNow;
-        _userRepo.Update(user);
-        await _userRepo.SaveChangesAsync();
+            user.UpdatedAt = DateTime.UtcNow;
+            _userRepo.Update(user);
+            await _userRepo.SaveChangesAsync();
 
-        return MapToDto(user);
+            return MapToDto(user);
         }
         catch (NotFoundException) { throw; }
         catch (Exception ex)
@@ -173,14 +179,14 @@ public class AuthManager : IAuthService
     {
         try
         {
-        var user = (await _userRepo.FindAsync(u =>
-            u.RefreshToken == refreshToken &&
-            u.RefreshTokenExpiryTime > DateTime.UtcNow)).FirstOrDefault();
+            var user = (await _userRepo.FindAsync(u =>
+                u.RefreshToken == refreshToken &&
+                u.RefreshTokenExpiryTime > DateTime.UtcNow)).FirstOrDefault();
 
-        if (user is null || !user.IsActive)
-            return new AuthResultDto { Success = false, ErrorMessage = "Geçersiz veya süresi dolmuş refresh token." };
+            if (user is null || !user.IsActive)
+                return new AuthResultDto { Success = false, ErrorMessage = "Geçersiz veya süresi dolmuş refresh token." };
 
-        return new AuthResultDto { Success = true, User = MapToDto(user), Token = "", RefreshToken = "" };
+            return new AuthResultDto { Success = true, User = MapToDto(user), Token = "", RefreshToken = "" };
         }
         catch (Exception ex)
         {
@@ -193,13 +199,13 @@ public class AuthManager : IAuthService
     {
         try
         {
-        var user = await _userRepo.GetByIdAsync(userId)
-            ?? throw new NotFoundException("Kullanıcı", userId);
+            var user = await _userRepo.GetByIdAsync(userId)
+                ?? throw new NotFoundException("Kullanıcı", userId);
 
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = expiryTime;
-        _userRepo.Update(user);
-        await _userRepo.SaveChangesAsync();
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiryTime = expiryTime;
+            _userRepo.Update(user);
+            await _userRepo.SaveChangesAsync();
         }
         catch (NotFoundException) { throw; }
         catch (Exception ex)
@@ -213,12 +219,12 @@ public class AuthManager : IAuthService
     {
         try
         {
-        var user = await _userRepo.GetByIdAsync(userId)
-            ?? throw new NotFoundException("Kullanıcı", userId);
+            var user = await _userRepo.GetByIdAsync(userId)
+                ?? throw new NotFoundException("Kullanıcı", userId);
 
-        user.IsActive = isActive;
-        _userRepo.Update(user);
-        await _userRepo.SaveChangesAsync();
+            user.IsActive = isActive;
+            _userRepo.Update(user);
+            await _userRepo.SaveChangesAsync();
         }
         catch (NotFoundException) { throw; }
         catch (Exception ex)
@@ -233,12 +239,9 @@ public class AuthManager : IAuthService
         Id = u.Id,
         Email = u.Email,
         FullName = u.FullName,
-        IsTeacherProfileComplete = u.IsTeacherProfileComplete,
         ProfileImageUrl = u.ProfileImageUrl,
-        Bio = u.Bio,
-        TokenBalance = u.TokenBalance,
+        WalletBalance = u.WalletBalance,
         Role = u.Role.ToString(),
         CreatedAt = u.CreatedAt
     };
 }
-

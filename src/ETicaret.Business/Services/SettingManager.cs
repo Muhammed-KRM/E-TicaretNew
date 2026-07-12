@@ -39,6 +39,12 @@ public class SettingManager : ISettingService
         return int.TryParse(stringValue, out int result) ? result : defaultValue;
     }
 
+    public async Task<decimal> GetDecimalSettingAsync(string key, decimal defaultValue = 0m)
+    {
+        var stringValue = await GetSettingAsync(key, defaultValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        return decimal.TryParse(stringValue, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal result) ? result : defaultValue;
+    }
+
     public async Task SetSettingAsync(string key, string value, string? description = null)
     {
         var setting = (await _settingRepo.FindAsync(s => s.Key == key)).FirstOrDefault();
@@ -68,9 +74,8 @@ public class SettingManager : ISettingService
     {
         var defaultSettings = new List<(string Key, string Value, string Description)>
         {
-            ("ListingCreationCost", "5", "İlan oluşturma jeton maliyeti"),
-            ("MessageUnlockCost", "1", "Mesaj kilidi açma jeton maliyeti"),
-            ("DirectOfferCost", "2", "Direkt teklif gönderme jeton maliyeti")
+            ("FreeShippingThreshold", "500", "Ücretsiz kargo için minimum sepet tutarı"),
+            ("DefaultShippingPrice", "50", "Standart kargo ücreti")
         };
 
         foreach (var (key, value, desc) in defaultSettings)

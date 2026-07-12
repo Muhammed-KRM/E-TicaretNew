@@ -170,5 +170,26 @@ public class ModerationManager : IModerationService
         5     => TimeSpan.FromDays(7),
         _     => null
     };
+
+    public string SanitizeHtml(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+        return Regex.Replace(text, "<.*?>", string.Empty);
+    }
+
+    public bool ContainsPII(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        var normalized = TurkishTextNormalizer.Normalize(text);
+        return PhoneRegex.IsMatch(normalized) || PhoneSimpleRegex.IsMatch(normalized) ||
+               PhoneSpacedRegex.IsMatch(normalized) || PhoneNoLeadingZeroRegex.IsMatch(normalized) ||
+               EmailRegex.IsMatch(normalized);
+    }
+
+    public bool ContainsInappropriateContent(string text)
+    {
+        // For now, return false. In a real scenario, this would check against a banned words list.
+        return false;
+    }
 }
 

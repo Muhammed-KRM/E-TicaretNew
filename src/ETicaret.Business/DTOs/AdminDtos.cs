@@ -9,18 +9,11 @@ public class AdminActivityDto
     public DateTime CreatedAt { get; set; }
 }
 
-public class PackageSaleDto
+public class AdminCategoryDto
 {
+    public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public int SalesCount { get; set; }
-    public int Percentage { get; set; }
-}
-
-public class AdminBranchDto
-{
-    public int Rank { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public int ListingCount { get; set; }
+    public int ProductCount { get; set; }
 }
 
 public class AdminUserDto
@@ -33,8 +26,7 @@ public class AdminUserDto
     public string Status { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public bool IsEmailVerified { get; set; }
-    public bool IsTeacherProfileComplete { get; set; }
-    public int TokenBalance { get; set; }
+    public decimal WalletBalance { get; set; }
     public int ViolationCount { get; set; }
     public DateTime? BannedUntil { get; set; }
     public string? BanReason { get; set; }
@@ -42,19 +34,27 @@ public class AdminUserDto
     public DateTime CreatedAt { get; set; }
 }
 
-public class AdminListingDto
+public class AdminProductDto
 {
     public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
-    public string TeacherName { get; set; } = string.Empty;
-    public string Branch { get; set; } = string.Empty;
-    public string City { get; set; } = string.Empty;
-    public int HourlyPrice { get; set; }
-    public string Type { get; set; } = string.Empty;
+    public string SellerName { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public int StockQuantity { get; set; }
     public string Status { get; set; } = string.Empty;
-    public bool IsVitrin { get; set; }
+    public bool IsActive { get; set; }
     public int ViewCount { get; set; }
-    public int MessageCount { get; set; }
+    public int SalesCount { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
+public class AdminOrderDto
+{
+    public Guid Id { get; set; }
+    public string OrderNumber { get; set; } = string.Empty;
+    public string CustomerName { get; set; } = string.Empty;
+    public decimal TotalPrice { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
