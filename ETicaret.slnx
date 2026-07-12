@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ETicaret.API/ETicaret.API.csproj" />
+    <Project Path="src/ETicaret.App/ETicaret.App.csproj" />
+    <Project Path="src/ETicaret.Business/ETicaret.Business.csproj" />
+    <Project Path="src/ETicaret.Data/ETicaret.Data.csproj" />
+    <Project Path="src/ETicaret.SharedUI/ETicaret.SharedUI.csproj" />
+    <Project Path="src/ETicaret.Web/ETicaret.Web.csproj" />
+    <Project Path="src/ETicaret.Worker/ETicaret.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ETicaret.IntegrationTests/ETicaret.IntegrationTests.csproj" />
+    <Project Path="tests/ETicaret.UnitTests/ETicaret.UnitTests.csproj" />
+  </Folder>
+</Solution>
+

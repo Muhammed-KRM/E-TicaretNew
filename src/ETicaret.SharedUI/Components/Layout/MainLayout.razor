@@ -1,0 +1,76 @@
+@inherits LayoutComponentBase
+
+<div class="app-layout">
+    <NavMenu />
+    <main class="main-content">
+        <ErrorBoundary @ref="errorBoundary">
+            <ChildContent>
+                @Body
+            </ChildContent>
+            <ErrorContent Context="exception">
+                <div class="error-panel text-center padding-xl">
+                    <h3 class="text-danger">Beklenmeyen Bir Hata Oluştu</h3>
+                    <p class="text-muted">@exception.Message</p>
+                    <button class="btn btn-secondary mt-4" @onclick="() => errorBoundary?.Recover()">Tekrar Dene</button>
+                </div>
+            </ErrorContent>
+        </ErrorBoundary>
+    </main>
+    <footer class="app-footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-section">
+                    <h4>ETicaret.com</h4>
+                    <p>Türkiye'nin en güvenilir özel ders platformu.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Keşfet</h4>
+                    <ul>
+                        <li><a href="/arama">Öğretmen Bul</a></li>
+                        <li><a href="/kayit">Ücretsiz Kayıt</a></li>
+                        <li><a href="/hakkimizda">Hakkımızda</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Platform</h4>
+                    <ul>
+                        <li><a href="/nasil-calisir">Nasıl Çalışır?</a></li>
+                        <li><a href="/sss">Sıkça Sorulan Sorular</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Yasal</h4>
+                    <ul>
+                        <li><a href="/gizlilik">Gizlilik Politikası</a></li>
+                        <li><a href="/kvkk">KVKK Aydınlatma</a></li>
+                        <li><a href="/kullanim-kosullari">Kullanım Koşulları</a></li>
+                        <li><a href="/iptal-iade">İptal & İade</a></li>
+                        <li><a href="/mesafeli-satis">Mesafeli Satış</a></li>
+                        <li><a href="/cerez-politikasi">Çerez Politikası</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; @DateTime.Now.Year ETicaret.com — Tüm hakları saklıdır.</p>
+            </div>
+        </div>
+    </footer>
+    <CookieConsent />
+    <OnboardingWizard />
+    <AuthorizeView>
+        <Authorized>
+            <BanWarningPopup />
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    private Microsoft.AspNetCore.Components.Web.ErrorBoundary? errorBoundary;
+
+    protected override void OnParametersSet()
+    {
+        // Sayfa değiştiğinde hataları sıfırla
+        errorBoundary?.Recover();
+    }
+}
+

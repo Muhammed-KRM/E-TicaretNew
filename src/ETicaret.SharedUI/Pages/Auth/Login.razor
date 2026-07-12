@@ -1,0 +1,105 @@
+@page "/giris"
+@inject ETicaret.Business.Interfaces.IAuthService AuthService
+@inject NavigationManager NavigationManager
+@inject Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider AuthStateProvider
+@using ETicaret.Business.Interfaces
+
+<PageTitle>Giriş Yap | ETicaret.com</PageTitle>
+
+<section class="section py-20 flex-center">
+    <div class="container" style="max-width: 450px;">
+        <div class="card glass animate-slide-up" style="border-radius: var(--radius-xl); padding: 3rem 2rem;">
+            <div class="text-center mb-12">
+                <h2 style="margin-bottom: 0.5rem; font-size: 2.5rem;">Hoş Geldiniz</h2>
+                <p class="text-muted">Eğitim serüveninize devam edin.</p>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" style="margin-bottom: 2rem;">@errorMessage</div>
+            }
+
+            <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="alert alert-danger" style="margin-bottom: 1.5rem;" />
+                <div class="flex-col gap-4 mb-4">
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <label class="font-bold text-sm">E-posta</label>
+                        <input type="email" @bind="loginModel.Email" class="search-input" style="border: 1px solid var(--color-border);" placeholder="ornek@email.com" required />
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <label class="font-bold text-sm">Şifre</label>
+                        <input type="password" @bind="loginModel.Password" class="search-input" style="border: 1px solid var(--color-border);" placeholder="••••••••" required />
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem; padding: 1rem;" disabled="@isLoading">
+                    @if (isLoading) { <span>Giriş Yapılıyor...</span> } else { <span>Giriş Yap</span> }
+                </button>
+            </EditForm>
+
+            <p class="text-center text-muted" style="margin-top: 2rem;">
+                Hesabınız yok mu? <a href="/kayit" class="text-primary font-bold" style="text-decoration: none;">Ücretsiz Kayıt Ol</a>
+            </p>
+        </div>
+    </div>
+</section>
+
+@using Microsoft.JSInterop
+@code {
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+    private ETicaret.Business.DTOs.UserLoginDto loginModel = new();
+    private string? errorMessage;
+    private bool isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // OnInitializedAsync içinde JS çağırmıyoruz (Prerendering hatasına yol açar)
+    }
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        await JS.InvokeVoidAsync("console.log", $"[ETicaret Tracker] Giriş denemesi başlatıldı: {loginModel.Email}");
+
+        try
+        {
+            var result = await AuthService.LoginAsync(loginModel);
+            if (result.Success && result.Token != null && AuthStateProvider is ICustomAuthStateProvider stateProvider)
+            {
+                await JS.InvokeVoidAsync("console.log", "[ETicaret Tracker] API girişi BAŞARILI. Kimlik bilgileri işleniyor...");
+                var user = result.User;
+                if (user != null)
+                {
+                    await stateProvider.LogInAsync(user.Id, user.FullName, user.Email, user.Role ?? "User", result.Token);
+                    await JS.InvokeVoidAsync("ETicaret.showSwal", "success", "Hoş Geldiniz! 🎉", $"Merhaba {user.FullName}, ana sayfaya yönlendiriliyorsunuz...", 2000);
+                    await Task.Delay(2100);
+                    NavigationManager.NavigateTo("/", forceLoad: true);
+                }
+                else
+                {
+                    errorMessage = "Sistemsel bir hata oluştu, kullanıcı verisi okunamadı.";
+                    await JS.InvokeVoidAsync("console.log", "[ETicaret Tracker] HATA: API Token verdi ama User objesi boş geldi.");
+                }
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage ?? "Giriş başarısız.";
+                await JS.InvokeVoidAsync("ETicaret.showSwal", "error", "Giriş Başarısız", errorMessage, 0);
+                await JS.InvokeVoidAsync("console.log", $"[ETicaret Tracker] HATA: API girişi reddetti. Sebep: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Beklenmeyen sunucu hatası.";
+            await JS.InvokeVoidAsync("console.error", $"[ETicaret Tracker] KRİTİK HATA: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
+

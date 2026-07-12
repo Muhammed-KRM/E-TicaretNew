@@ -1,0 +1,293 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+
+<nav class="navbar navbar-glass">
+    <div class="navbar-inner">
+        <!-- Sol: Geri oku (panel/admin sayfalarında) + Logo -->
+        <div class="navbar-left">
+            @if (showBackButton)
+            {
+                <button class="navbar-back-btn" @onclick="GoBack" aria-label="Geri dön" title="Geri">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 12H5M12 5l-7 7 7 7" />
+                    </svg>
+                </button>
+            }
+            <a href="/" class="navbar-brand">
+                <span class="brand-icon">🎓</span>
+                <span class="brand-text">ETicaret</span>
+            </a>
+        </div>
+
+        <!-- Sağ: Linkler (masaüstü) + Hamburger (mobil) -->
+        <div class="navbar-right">
+            <!-- Masaüstü linkleri -->
+            <div class="navbar-links">
+                <a href="/arama" class="nav-link">Öğretmen Bul</a>
+
+                <!-- Kategoriler Dropdown -->
+                <div class="nav-dropdown-wrapper">
+                    <button class="nav-link nav-dropdown-trigger" @onclick="ToggleCategoryDropdown" @onclick:stopPropagation="true">
+                        Kategoriler
+                        <svg class="nav-chevron @(isCategoryDropdownOpen ? "open" : "")" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    @if (isCategoryDropdownOpen)
+                    {
+                        <div class="nav-category-dropdown" @onclick="CloseCategoryDropdown">
+                            <a href="/kategori/akademik" class="cat-dropdown-item">
+                                <span class="cat-dd-icon" style="background:#EEF2FF">📚</span>
+                                <div><strong>Akademik</strong><span>Matematik, Fizik, Kimya...</span></div>
+                            </a>
+                            <a href="/kategori/sinav" class="cat-dropdown-item">
+                                <span class="cat-dd-icon" style="background:#F5F3FF">🎯</span>
+                                <div><strong>Sınav Hazırlık</strong><span>YKS, LGS, KPSS...</span></div>
+                            </a>
+                            <a href="/kategori/yazilim" class="cat-dropdown-item">
+                                <span class="cat-dd-icon" style="background:#ECFDF5">💻</span>
+                                <div><strong>Yazılım & Teknoloji</strong><span>Python, React, SQL...</span></div>
+                            </a>
+                            <a href="/kategori/muzik" class="cat-dropdown-item">
+                                <span class="cat-dd-icon" style="background:#F5F3FF">🎵</span>
+                                <div><strong>Müzik & Sanat</strong><span>Piyano, Gitar, Resim...</span></div>
+                            </a>
+                            <a href="/kategori/spor" class="cat-dropdown-item">
+                                <span class="cat-dd-icon" style="background:#FFFBEB">⚽</span>
+                                <div><strong>Spor & Aktivite</strong><span>Yüzme, Tenis, Yoga...</span></div>
+                            </a>
+                            <a href="/kategori/dil" class="cat-dropdown-item">
+                                <span class="cat-dd-icon" style="background:#F0F9FF">🌍</span>
+                                <div><strong>Yabancı Dil</strong><span>İngilizce, Almanca...</span></div>
+                            </a>
+                            <div class="cat-dropdown-footer">
+                                <a href="/arama">Tüm İlanları Gör →</a>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <a href="/nasil-calisir" class="nav-link">Nasıl Çalışır?</a>
+
+                <!-- Dark Mode Toggle -->
+                <button class="dark-mode-toggle" @onclick="ToggleDarkMode" title="@(isDark ? "Açık Mod" : "Koyu Mod")" aria-label="Tema değiştir">
+                    @if (isDark) { <span>☀️</span> } else { <span>🌙</span> }
+                </button>
+
+                <AuthorizeView>
+                    <Authorized>
+                        <a href="/panel/ilan-olustur" class="btn btn-primary btn-sm" style="border-radius: 50px; padding: 0.6rem 1.4rem;">
+                            ➕ İlan Ver
+                        </a>
+                        <NotificationBell />
+                        <a href="/panel/mesajlarim" class="nav-link nav-icon-link" title="Mesajlarım">
+                            💬
+                        </a>
+                        <div class="profile-dropdown-wrapper">
+                            <button class="profile-avatar-btn" @onclick="ToggleDropdown" @onclick:stopPropagation="true">
+                                @(context.User.Identity?.Name?[..1].ToUpper() ?? "U")
+                            </button>
+                            @if (isDropdownOpen)
+                            {
+                                <div class="profile-dropdown" @onclick="CloseDropdown">
+                                    <div class="dropdown-header">
+                                        <span class="dropdown-name">@context.User.Identity?.Name</span>
+                                        <span class="dropdown-email">@GetEmail(context)</span>
+                                    </div>
+                                    <hr class="dropdown-divider" />
+                                    <a href="/panel/dashboard" class="dropdown-item">📊 Kontrol Paneli</a>
+                                    <a href="/panel/ilanlarim" class="dropdown-item">📋 İlanlarım</a>
+                                    <a href="/panel/mesajlarim" class="dropdown-item">💬 Mesajlarım</a>
+                                    <a href="/panel/jetonlarim" class="dropdown-item">💰 Cüzdan & Jetonlar</a>
+                                    <a href="/panel/profil-ayarlari" class="dropdown-item">⚙️ Profil Ayarları</a>
+                                    <hr class="dropdown-divider" />
+                                    <AuthorizeView Roles="Admin" Context="adminCtx">
+                                        <Authorized>
+                                            <a href="/admin" class="dropdown-item dropdown-admin">🛡️ Admin Paneli</a>
+                                            <hr class="dropdown-divider" />
+                                        </Authorized>
+                                    </AuthorizeView>
+                                    <button class="dropdown-item dropdown-logout" @onclick="HandleLogout">🚪 Çıkış Yap</button>
+                                </div>
+                            }
+                        </div>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="/giris" class="btn btn-secondary btn-sm">Giriş Yap</a>
+                        <a href="/kayit" class="btn btn-primary btn-sm">Ücretsiz Kayıt</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+
+            <!-- Hamburger (sadece mobilde görünür) -->
+            <button class="mobile-menu-toggle @(isMobileMenuOpen ? "menu-open" : "")" @onclick="ToggleMobileMenu" aria-label="Menü">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    @if (isMobileMenuOpen)
+                    {
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    }
+                    else
+                    {
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    }
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobil açılır menü -->
+    @if (isMobileMenuOpen)
+    {
+        <div class="mobile-menu">
+            <a href="/arama" class="mobile-menu-link" @onclick="CloseMobileMenu">Öğretmen Bul</a>
+
+            <!-- Kategoriler (mobil) -->
+            <button class="mobile-menu-link mobile-menu-section-toggle" @onclick="ToggleMobileCategorySection">
+                Kategoriler
+                <svg class="nav-chevron @(isMobileCategorySectionOpen ? "open" : "")" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+            @if (isMobileCategorySectionOpen)
+            {
+                <a href="/kategori/akademik" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">📚 Akademik</a>
+                <a href="/kategori/sinav" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">🎯 Sınav Hazırlık</a>
+                <a href="/kategori/yazilim" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">💻 Yazılım & Teknoloji</a>
+                <a href="/kategori/muzik" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">🎵 Müzik & Sanat</a>
+                <a href="/kategori/spor" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">⚽ Spor & Aktivite</a>
+                <a href="/kategori/dil" class="mobile-menu-link mobile-menu-sub" @onclick="CloseMobileMenu">🌍 Yabancı Dil</a>
+            }
+
+            <a href="/nasil-calisir" class="mobile-menu-link" @onclick="CloseMobileMenu">Nasıl Çalışır?</a>
+
+            <!-- Dark Mode Toggle (Mobil) -->
+            <button class="mobile-menu-link" style="text-align:left; background:none; border:none; cursor:pointer; width:100%;" @onclick="ToggleDarkMode">
+                @if (isDark) { <span>☀️ Açık Mod</span> } else { <span>🌙 Koyu Mod</span> }
+            </button>
+
+            <AuthorizeView>
+                <Authorized>
+                    <a href="/panel/ilan-olustur" class="mobile-menu-link mobile-menu-highlight" @onclick="CloseMobileMenu">➕ İlan Ver</a>
+                    <a href="/bildirimler" class="mobile-menu-link" @onclick="CloseMobileMenu">🔔 Bildirimler</a>
+                    <a href="/panel/mesajlarim" class="mobile-menu-link" @onclick="CloseMobileMenu">💬 Mesajlarım</a>
+                    <a href="/panel/dashboard" class="mobile-menu-link" @onclick="CloseMobileMenu">📊 Kontrol Paneli</a>
+                    <a href="/panel/ilanlarim" class="mobile-menu-link" @onclick="CloseMobileMenu">📋 İlanlarım</a>
+                    <a href="/panel/jetonlarim" class="mobile-menu-link" @onclick="CloseMobileMenu">💰 Cüzdan & Jetonlar</a>
+                    <a href="/panel/profil-ayarlari" class="mobile-menu-link" @onclick="CloseMobileMenu">⚙️ Profil Ayarları</a>
+                    <AuthorizeView Roles="Admin" Context="adminCtx">
+                        <Authorized>
+                            <a href="/admin" class="mobile-menu-link mobile-menu-admin" @onclick="CloseMobileMenu">🛡️ Admin Paneli</a>
+                        </Authorized>
+                    </AuthorizeView>
+                    <div class="mobile-menu-divider"></div>
+                    <button class="mobile-menu-link mobile-menu-logout" @onclick="HandleLogout">🚪 Çıkış Yap</button>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/giris" class="mobile-menu-link" @onclick="CloseMobileMenu">Giriş Yap</a>
+                    <a href="/kayit" class="mobile-menu-link mobile-menu-highlight" @onclick="CloseMobileMenu">Ücretsiz Kayıt</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    }
+</nav>
+
+@code {
+    private bool isDropdownOpen = false;
+    private bool isMobileMenuOpen = false;
+    private bool showBackButton = false;
+    private bool isCategoryDropdownOpen = false;
+    private bool isMobileCategorySectionOpen = false;
+    private bool isDark = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var theme = await JS.InvokeAsync<string>("ETicaret.initTheme");
+            isDark = theme == "dark";
+            StateHasChanged();
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        showBackButton = IsSubPage();
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        showBackButton = IsSubPage();
+        isMobileMenuOpen = false;
+        isDropdownOpen = false;
+        isCategoryDropdownOpen = false;
+        isMobileCategorySectionOpen = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+
+    private bool IsSubPage()
+    {
+        var path = Navigation.Uri.Replace(Navigation.BaseUri, "/").TrimEnd('/');
+        if (string.IsNullOrEmpty(path) || path == "/") return false;
+        var rootPages = new[] { "/arama", "/nasil-calisir", "/giris", "/kayit", "/hakkimizda" };
+        if (rootPages.Any(p => path.Equals(p, StringComparison.OrdinalIgnoreCase))) return false;
+        return path.StartsWith("/panel/") || path.StartsWith("/admin/") || path.StartsWith("/ilan/");
+    }
+
+    private async Task GoBack() => await JS.InvokeVoidAsync("history.back");
+
+    private async Task ToggleDarkMode()
+    {
+        var newTheme = await JS.InvokeAsync<string>("ETicaret.toggleTheme");
+        isDark = newTheme == "dark";
+    }
+
+    private void ToggleDropdown() => isDropdownOpen = !isDropdownOpen;
+    private void CloseDropdown() => isDropdownOpen = false;
+
+    private void ToggleCategoryDropdown() => isCategoryDropdownOpen = !isCategoryDropdownOpen;
+    private void CloseCategoryDropdown() => isCategoryDropdownOpen = false;
+    private void ToggleMobileCategorySection() => isMobileCategorySectionOpen = !isMobileCategorySectionOpen;
+
+    private void ToggleMobileMenu()
+    {
+        isMobileMenuOpen = !isMobileMenuOpen;
+        isDropdownOpen = false;
+    }
+
+    private void CloseMobileMenu()
+    {
+        isMobileMenuOpen = false;
+        isDropdownOpen = false;
+        isCategoryDropdownOpen = false;
+    }
+
+    private string GetEmail(AuthenticationState context)
+    {
+        return context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+    }
+
+    private async Task HandleLogout()
+    {
+        isDropdownOpen = false;
+        isMobileMenuOpen = false;
+        if (AuthStateProvider is ETicaret.Business.Interfaces.ICustomAuthStateProvider stateProvider)
+        {
+            await stateProvider.LogOutAsync();
+        }
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+}
+

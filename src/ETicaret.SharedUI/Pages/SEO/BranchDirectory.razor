@@ -1,0 +1,57 @@
+@page "/ders-verenler/{Branch}"
+@inject ETicaret.Business.Interfaces.IListingService ListingService
+
+<PageTitle>@FormattedBranch Özel Ders Verenler | ETicaret.com</PageTitle>
+<HeadContent>
+    <meta name="description" content="En iyi @FormattedBranch eğitmenlerinden özel ders alın. Binlerce onaylı profili inceleyin, bütçenize uygun uzman öğretmeni hemen bulun." />
+    <meta property="og:title" content="@FormattedBranch Özel Ders" />
+</HeadContent>
+
+<section class="branch-hero">
+    <div class="container flex-row">
+        <div class="content-side text-left">
+            <span class="badge badge-primary mb-2">Popüler Kategori</span>
+            <h1 class="branch-title animate-slide-up">
+                <span class="text-primary">@FormattedBranch</span> Öğrenme Vakti Geldi
+            </h1>
+            <p class="branch-subtitle animate-fade-in">
+                Hedeflerine daha hızlı ulaşmak için alanında uzman binlerce öğretmen seni bekliyor. Seç, iletişime geç ve hemen başla.
+            </p>
+        </div>
+        <div class="graphic-side">
+            <!-- Glassmorphism grafik efekti -->
+            <div class="glass-orb"></div>
+        </div>
+    </div>
+</section>
+
+<section class="section seo-results bg-soft">
+    <div class="container">
+        <h2 class="text-center mb-6 text-secondary">Tüm @FormattedBranch Eğitmenleri</h2>
+        <div class="grid grid-3">
+            @if (listings.Any())
+            {
+                @foreach (var listing in listings)
+                {
+                    <ETicaret.SharedUI.Components.ListingCard Listing="listing" />
+                }
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public string Branch { get; set; } = string.Empty;
+
+    public string FormattedBranch => char.ToUpper(Branch[0]) + Branch.Substring(1).Replace("-", " ");
+
+    private List<ETicaret.Business.DTOs.ListingDto> listings = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var searchResult = await ListingService.SearchAsync(new ETicaret.Business.DTOs.SearchFilterDto { Branch = Branch });
+        listings = searchResult.Items.ToList();
+    }
+}
+
