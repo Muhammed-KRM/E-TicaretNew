@@ -16,10 +16,8 @@ public static class ServiceRegistration
         // Add Repositories
         services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IListingRepository, ListingRepository>();
-        
-        // Diğer repositoryler eklenecek
-        // services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
 
         return services;
     }

@@ -10,16 +10,20 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
-    public DbSet<Listing> Listings => Set<Listing>();
-    public DbSet<ListingImage> ListingImages => Set<ListingImage>();
-    public DbSet<Message> Messages => Set<Message>();
+    public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Address> Addresses => Set<Address>();
+    public DbSet<Cart> Carts => Set<Cart>();
+    public DbSet<CartItem> CartItems => Set<CartItem>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<Review> Reviews => Set<Review>();
-    public DbSet<TokenTransaction> TokenTransactions => Set<TokenTransaction>();
-    public DbSet<Branch> Branches => Set<Branch>();
+
     public DbSet<City> Cities => Set<City>();
     public DbSet<District> Districts => Set<District>();
-    public DbSet<TokenPackage> TokenPackages => Set<TokenPackage>();
-    public DbSet<VitrinPackage> VitrinPackages => Set<VitrinPackage>();
     public DbSet<GlobalSetting> GlobalSettings => Set<GlobalSetting>();
     public DbSet<EndpointLog> EndpointLogs => Set<EndpointLog>();
     public DbSet<FunctionLog> FunctionLogs => Set<FunctionLog>();
@@ -34,4 +38,3 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
     }
 }
-

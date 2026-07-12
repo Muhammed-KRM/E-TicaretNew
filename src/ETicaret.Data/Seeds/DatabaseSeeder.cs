@@ -58,26 +58,21 @@ public static class DatabaseSeeder
             }
         }
 
-        // ── Branşlar ─────────────────────────────────────────
-        var branchCount = context.Branches.Count();
-        if (branchCount < 10)
+        // ── Kategoriler (Yeni E-Ticaret Kategorileri) ──────────────
+        var categoryCount = context.Categories.Count();
+        if (categoryCount == 0)
         {
-            var existingBranchNames = context.Branches.Select(b => b.Name).ToHashSet();
-            var allBranches = GetBranches();
-            var missingBranches = allBranches
-                .Where(b => !existingBranchNames.Contains(b.Name))
-                .Select(b => new Branch
-                {
-                    Name = b.Name, Slug = b.Slug, Category = b.Category,
-                    IsPopular = b.IsPopular, DisplayOrder = b.DisplayOrder
-                })
-                .ToList();
-
-            if (missingBranches.Count > 0)
+            var categories = new List<Category>
             {
-                await context.Branches.AddRangeAsync(missingBranches);
-                await context.SaveChangesAsync();
-            }
+                new Category { Name = "Elektronik", Slug = "elektronik", DisplayOrder = 1 },
+                new Category { Name = "Giyim & Ayakkabı", Slug = "giyim-ayakkabi", DisplayOrder = 2 },
+                new Category { Name = "Ev & Yaşam", Slug = "ev-yasam", DisplayOrder = 3 },
+                new Category { Name = "Kozmetik", Slug = "kozmetik", DisplayOrder = 4 },
+                new Category { Name = "Spor & Outdoor", Slug = "spor-outdoor", DisplayOrder = 5 }
+            };
+            
+            await context.Categories.AddRangeAsync(categories);
+            await context.SaveChangesAsync();
         }
     }
 
@@ -443,120 +438,6 @@ public static class DatabaseSeeder
             .Replace(" ","-").Replace("'","");
 
 
-    // ════════════════════════════════════════════════════════
-    // BRANŞLAR — Kapsamlı liste, kategorili
-    // ════════════════════════════════════════════════════════
-    private static List<Branch> GetBranches()
-    {
-        int id = 1;
-        int order = 1;
-        var list = new List<Branch>();
 
-        void Add(string name, string category, bool popular = false) =>
-            list.Add(new Branch { Id = id++, Name = name, Slug = Slugify(name), Category = category, IsPopular = popular, DisplayOrder = order++ });
-
-        // Akademik — Temel Dersler
-        Add("Matematik",           "Akademik", popular: true);
-        Add("Fizik",               "Akademik", popular: true);
-        Add("Kimya",               "Akademik", popular: true);
-        Add("Biyoloji",            "Akademik", popular: true);
-        Add("Türkçe / Edebiyat",   "Akademik", popular: true);
-        Add("Tarih",               "Akademik");
-        Add("Coğrafya",            "Akademik");
-        Add("Felsefe",             "Akademik");
-        Add("Din Kültürü",         "Akademik");
-        Add("İngilizce",           "Dil",      popular: true);
-        Add("Almanca",             "Dil",      popular: true);
-        Add("Fransızca",           "Dil");
-        Add("İspanyolca",          "Dil");
-        Add("İtalyanca",           "Dil");
-        Add("Arapça",              "Dil");
-        Add("Rusça",               "Dil");
-        Add("Japonca",             "Dil");
-        Add("Çince",               "Dil");
-        Add("Korece",              "Dil");
-
-        // Sınav Hazırlık
-        Add("YKS / TYT Matematik", "Sınav Hazırlık", popular: true);
-        Add("YKS / AYT Fizik",     "Sınav Hazırlık", popular: true);
-        Add("YKS / AYT Kimya",     "Sınav Hazırlık", popular: true);
-        Add("YKS / AYT Biyoloji",  "Sınav Hazırlık");
-        Add("YKS / AYT Edebiyat",  "Sınav Hazırlık");
-        Add("YKS / AYT Tarih",     "Sınav Hazırlık");
-        Add("YKS / AYT Coğrafya",  "Sınav Hazırlık");
-        Add("LGS Hazırlık",        "Sınav Hazırlık", popular: true);
-        Add("KPSS",                "Sınav Hazırlık", popular: true);
-        Add("ALES",                "Sınav Hazırlık");
-        Add("YDS / YÖKDİL",        "Sınav Hazırlık");
-        Add("DGS",                 "Sınav Hazırlık");
-        Add("ÖSYM Sınavları",      "Sınav Hazırlık");
-
-        // Teknoloji & Yazılım
-        Add("Python",              "Yazılım", popular: true);
-        Add("JavaScript",          "Yazılım", popular: true);
-        Add("Java",                "Yazılım", popular: true);
-        Add("C# / .NET",           "Yazılım", popular: true);
-        Add("C / C++",             "Yazılım");
-        Add("PHP",                 "Yazılım");
-        Add("Swift / iOS",         "Yazılım");
-        Add("Kotlin / Android",    "Yazılım");
-        Add("React",               "Yazılım", popular: true);
-        Add("Vue.js",              "Yazılım");
-        Add("Angular",             "Yazılım");
-        Add("Node.js",             "Yazılım");
-        Add("SQL / Veritabanı",    "Yazılım");
-        Add("Siber Güvenlik",      "Yazılım");
-        Add("Veri Bilimi",         "Yazılım", popular: true);
-        Add("Yapay Zeka / ML",     "Yazılım", popular: true);
-        Add("Unity / Oyun Geliştirme", "Yazılım");
-        Add("Web Tasarım",         "Yazılım");
-
-        // Müzik
-        Add("Piyano",              "Müzik", popular: true);
-        Add("Gitar (Klasik)",      "Müzik", popular: true);
-        Add("Gitar (Elektro/Akustik)", "Müzik");
-        Add("Keman",               "Müzik");
-        Add("Viyola",              "Müzik");
-        Add("Çello",               "Müzik");
-        Add("Flüt",                "Müzik");
-        Add("Klarnet",             "Müzik");
-        Add("Saksofon",            "Müzik");
-        Add("Davul / Perküsyon",   "Müzik");
-        Add("Bağlama / Saz",       "Müzik", popular: true);
-        Add("Ud",                  "Müzik");
-        Add("Şan / Vokal",         "Müzik");
-
-        // Sanat & Tasarım
-        Add("Resim",               "Sanat");
-        Add("Yağlı Boya",          "Sanat");
-        Add("Suluboya",            "Sanat");
-        Add("Heykel",              "Sanat");
-        Add("Grafik Tasarım",      "Sanat", popular: true);
-        Add("Fotoğrafçılık",       "Sanat");
-        Add("Video Düzenleme",     "Sanat");
-
-        // Spor & Aktivite
-        Add("Yüzme",               "Spor", popular: true);
-        Add("Tenis",               "Spor");
-        Add("Satranç",             "Spor", popular: true);
-        Add("Yoga",                "Spor");
-        Add("Pilates",             "Spor");
-        Add("Dans (Salsa/Tango)",  "Spor");
-        Add("Bale",                "Spor");
-        Add("Jimnastik",           "Spor");
-        Add("Futbol Antrenörlüğü", "Spor");
-        Add("Basketbol",           "Spor");
-        Add("Voleybol",            "Spor");
-        Add("Dövüş Sanatları",     "Spor");
-
-        // Diğer
-        Add("Muhasebe",            "Diğer");
-        Add("Girişimcilik",        "Diğer");
-        Add("Diksiyon / Sunum",    "Diğer");
-        Add("Hız Okuma",           "Diğer");
-        Add("Zihin Haritası",      "Diğer");
-
-        return list;
-    }
 }
 

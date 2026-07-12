@@ -9,6 +9,5 @@ public class District
     
     // Navigation Properties
     public City City { get; set; } = null!;
-    public ICollection<Listing> Listings { get; set; } = new List<Listing>();
 }
 
