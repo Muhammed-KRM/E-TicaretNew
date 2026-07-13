@@ -1,167 +1,653 @@
 @page "/arama"
 @page "/kategori/{slug}"
 @inject IProductService ProductService
+@inject ICategoryService CategoryService
 @inject NavigationManager NavManager
+@using ETicaret.Business.DTOs
+@using System.Globalization
 
-<PageTitle>Ürünler | ETicaret.com</PageTitle>
+<PageTitle>Ürünlerimizi Keşfedin | ETicaret.com</PageTitle>
 
-<div class="container padding-y-xl">
-    <div class="row">
-        <!-- Sol Panel (Filtreler) -->
-        <aside class="col-md-3">
-            <div class="filter-panel glass padding-lg" style="border-radius: var(--radius-md);">
-                <h3 class="mb-4">Filtreler</h3>
-
-                <div class="filter-group mb-4">
-                    <h4 class="mb-2">Fiyat Aralığı</h4>
-                    <div class="d-flex align-items-center gap-2">
-                        <input type="number" class="form-control" placeholder="En Az" @bind="minPrice" />
-                        <span>-</span>
-                        <input type="number" class="form-control" placeholder="En Çok" @bind="maxPrice" />
-                    </div>
-                </div>
-
-                <div class="filter-group mb-4">
-                    <h4 class="mb-2">Kategoriler</h4>
-                    <div class="category-list">
-                        <label class="d-block"><input type="checkbox" /> Elektronik</label>
-                        <label class="d-block"><input type="checkbox" /> Giyim</label>
-                        <label class="d-block"><input type="checkbox" /> Ev & Yaşam</label>
-                        <label class="d-block"><input type="checkbox" /> Spor</label>
-                    </div>
-                </div>
-
-                <button class="btn btn-primary w-100" @onclick="ApplyFilters">Uygula</button>
-            </div>
-        </aside>
-
-        <!-- Sağ Panel (Ürünler) -->
-        <main class="col-md-9">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 style="font-size: 1.5rem;">Ürünler</h1>
-                <select class="form-select w-auto" @bind="sortBy">
-                    <option value="newest">En Yeniler</option>
-                    <option value="price_asc">Fiyat: Artan</option>
-                    <option value="price_desc">Fiyat: Azalan</option>
-                </select>
-            </div>
-
-            @if (isLoading)
+<div class="products-page-container">
+    <!-- Hero Banner -->
+    <div class="products-hero">
+        <div class="container">
+            @if (!string.IsNullOrEmpty(slug) && activeCategory != null)
             {
-                <div class="text-center padding-xl">Yükleniyor...</div>
+                <h1>@activeCategory.Name</h1>
+                <p>@activeCategory.Description</p>
             }
-            else if (!products.Any())
+            else if (!string.IsNullOrEmpty(q))
             {
-                <div class="text-center padding-xl glass">Sonuç bulunamadı.</div>
+                <h1>Arama Sonuçları</h1>
+                <p>"<strong>@q</strong>" için sonuçlar listeleniyor</p>
             }
             else
             {
-                <div class="grid grid-3 gap-4">
-                    @foreach (var product in products)
-                    {
-                        <div class="product-card"
-                            style="background: white; border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center;">
-                            <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
-                            <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--color-text-primary);">
-                                @product.Title</h3>
-                            <div
-                                style="font-weight: 700; color: var(--color-primary); font-size: 1.25rem; margin-bottom: 1rem;">
-                                @product.Price.ToString("C2")</div>
-                            <a href="/urun/@product.Id" class="btn btn-outline" style="width: 100%;">İncele</a>
-                        </div>
-                    }
-                </div>
+                <h1>Tüm Ürünler</h1>
+                <p>Güvenilir, kaliteli ve seçkin ürün yelpazemizi inceleyin.</p>
             }
-        </main>
+        </div>
+    </div>
+
+    <div class="container padding-y-lg">
+        <div class="products-layout">
+            <!-- Sol Filtre Paneli -->
+            <aside class="filters-sidebar">
+                <div class="filter-card glass">
+                    <div class="filter-header">
+                        <h3>🔍 Filtreler</h3>
+                        @if (selectedCategoryId != null || minPrice != null || maxPrice != null)
+                        {
+                            <button class="btn-clear-filters" @onclick="ClearAllFilters">Temizle</button>
+                        }
+                    </div>
+
+                    <!-- Fiyat Aralığı -->
+                    <div class="filter-section">
+                        <h4>💰 Fiyat Aralığı</h4>
+                        <div class="price-range-inputs">
+                            <div class="price-input-wrapper">
+                                <span class="currency-prefix">₺</span>
+                                <input type="number" class="price-input" placeholder="Min" @bind="minPrice" />
+                            </div>
+                            <span class="range-separator">-</span>
+                            <div class="price-input-wrapper">
+                                <span class="currency-prefix">₺</span>
+                                <input type="number" class="price-input" placeholder="Max" @bind="maxPrice" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kategoriler -->
+                    <div class="filter-section">
+                        <h4>📂 Kategoriler</h4>
+                        <div class="category-filter-list">
+                            <button type="button" class="category-filter-item @(selectedCategoryId == null ? "active" : "")" @onclick="() => SelectCategory(null)">
+                                <span class="icon">🏷️</span> Tüm Kategoriler
+                            </button>
+                            @foreach (var cat in categories)
+                            {
+                                <button type="button" class="category-filter-item @(selectedCategoryId == cat.Id ? "active" : "")" @onclick="() => SelectCategory(cat.Id)">
+                                    <span class="icon">📦</span> @cat.Name
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary w-100 btn-apply-filter" @onclick="ApplyFilters">Filtreleri Uygula</button>
+                </div>
+            </aside>
+
+            <!-- Sağ Ürün Paneli -->
+            <main class="products-main-content">
+                <div class="results-header-bar">
+                    <div class="results-count">
+                        @if (isLoading)
+                        {
+                            <span>Ürünler taranıyor...</span>
+                        }
+                        else
+                        {
+                            <span>Toplam <strong>@products.Count</strong> ürün bulundu</span>
+                        }
+                    </div>
+
+                    <div class="sorting-wrapper">
+                        <label for="sort-select">Sırala:</label>
+                        <select id="sort-select" class="sort-select" @bind:event="onchange" @bind="sortBy" @bind:after="ApplyFilters">
+                            <option value="newest">En Yeniler</option>
+                            <option value="price_asc">Fiyat: Düşükten Yükseğe</option>
+                            <option value="price_desc">Fiyat: Yüksekten Düşüğe</option>
+                        </select>
+                    </div>
+                </div>
+
+                @if (isLoading)
+                {
+                    <div class="loading-state-wrapper">
+                        <div class="spinner-custom"></div>
+                        <p>Ürün listesi güncelleniyor, lütfen bekleyin...</p>
+                    </div>
+                }
+                else if (!products.Any())
+                {
+                    <div class="empty-state-card glass text-center">
+                        <div class="empty-state-icon">🔍</div>
+                        <h3>Aradığınız kriterlere uygun ürün bulunamadı.</h3>
+                        <p>Filtreleri temizleyerek veya farklı kelimelerle arama yapmayı deneyebilirsiniz.</p>
+                        <button class="btn btn-outline mt-4" @onclick="ClearAllFilters">Filtreleri Sıfırla</button>
+                    </div>
+                }
+                else
+                {
+                    <div class="products-grid">
+                        @foreach (var product in products)
+                        {
+                            <div class="premium-product-card">
+                                <div class="card-image-box">
+                                    <span class="product-badge">Yeni</span>
+                                    <span class="box-icon">📦</span>
+                                </div>
+                                <div class="card-details">
+                                    <h3 class="product-title">@product.Title</h3>
+                                    <p class="product-desc-short">@product.Description</p>
+                                    <div class="card-footer-info">
+                                        <div class="price-tag">@product.Price.ToString("C2", new CultureInfo("tr-TR"))</div>
+                                        <a href="/urun/@product.Id" class="btn btn-primary btn-sm btn-card-view">İncele</a>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </main>
+        </div>
     </div>
 </div>
 
+<style>
+    .products-page-container {
+        font-family: var(--font-body, 'Inter', sans-serif);
+        background-color: var(--color-bg, #FBFBFA);
+        min-height: 100vh;
+    }
+
+    .products-hero {
+        background: linear-gradient(135deg, var(--color-primary, #3C4E2D) 0%, #2B3920 100%);
+        color: white;
+        padding: 4rem 0;
+        text-align: center;
+    }
+
+    .products-hero h1 {
+        font-family: var(--font-heading, 'Plus Jakarta Sans', sans-serif);
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: white;
+        margin-bottom: 0.5rem;
+    }
+
+    .products-hero p {
+        font-size: 1.1rem;
+        color: white;
+        opacity: 0.85;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .products-layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+
+    .filters-sidebar {
+        position: sticky;
+        top: 20px;
+        height: fit-content;
+    }
+
+    .filter-card {
+        background: white;
+        border-radius: var(--radius-lg, 12px);
+        padding: 1.75rem;
+        border: 1px solid var(--color-border, #E0DDD5);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .filter-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--color-border-light, #EEECE6);
+        padding-bottom: 0.75rem;
+    }
+
+    .filter-header h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--color-primary);
+        margin: 0;
+    }
+
+    .btn-clear-filters {
+        background: none;
+        border: none;
+        color: var(--color-danger, #C0392B);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0;
+        text-decoration: underline;
+    }
+
+    .filter-section {
+        margin-bottom: 1.75rem;
+    }
+
+    .filter-section h4 {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--color-text);
+        margin-bottom: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .price-range-inputs {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .price-input-wrapper {
+        position: relative;
+        flex: 1;
+    }
+
+    .currency-prefix {
+        position: absolute;
+        left: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.85rem;
+        color: var(--color-text-muted);
+        font-weight: 600;
+    }
+
+    .price-input {
+        width: 100%;
+        padding: 0.5rem 0.5rem 0.5rem 1.5rem;
+        border: 1.5px solid var(--color-border, #E0DDD5);
+        border-radius: var(--radius-sm, 4px);
+        font-size: 0.9rem;
+        box-sizing: border-box;
+        outline: none;
+        transition: border-color var(--transition-fast);
+    }
+
+    .price-input:focus {
+        border-color: var(--color-primary);
+    }
+
+    .range-separator {
+        color: var(--color-text-muted);
+    }
+
+    .category-filter-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .category-filter-item {
+        background: none;
+        border: none;
+        text-align: left;
+        width: 100%;
+        padding: 0.6rem 0.75rem;
+        border-radius: var(--radius-sm, 4px);
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--color-text-light);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: background-color var(--transition-fast), color var(--transition-fast);
+    }
+
+    .category-filter-item:hover {
+        background-color: var(--color-surface-alt, #F5F5F0);
+        color: var(--color-primary);
+    }
+
+    .category-filter-item.active {
+        background-color: var(--color-primary);
+        color: white;
+        font-weight: 600;
+    }
+
+    .category-filter-item.active .icon {
+        opacity: 1;
+    }
+
+    .btn-apply-filter {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .products-main-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .results-header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        border-radius: var(--radius-md, 8px);
+        padding: 1rem 1.5rem;
+        border: 1px solid var(--color-border-light, #EEECE6);
+    }
+
+    .results-count {
+        font-size: 0.95rem;
+        color: var(--color-text-light);
+    }
+
+    .sorting-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .sorting-wrapper label {
+        font-size: 0.9rem;
+        color: var(--color-text-light);
+    }
+
+    .sort-select {
+        padding: 0.5rem 1.5rem 0.5rem 0.75rem;
+        border: 1.5px solid var(--color-border, #E0DDD5);
+        border-radius: var(--radius-sm, 4px);
+        background: white;
+        font-size: 0.9rem;
+        color: var(--color-text);
+        outline: none;
+        cursor: pointer;
+    }
+
+    .sort-select:focus {
+        border-color: var(--color-primary);
+    }
+
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+    }
+
+    .premium-product-card {
+        background: white;
+        border-radius: var(--radius-lg, 12px);
+        border: 1px solid var(--color-border-light, #EEECE6);
+        overflow: hidden;
+        transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .premium-product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--color-border, #E0DDD5);
+    }
+
+    .card-image-box {
+        height: 180px;
+        background-color: var(--color-surface-alt, #F5F5F0);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+    }
+
+    .card-image-box .box-icon {
+        font-size: 4rem;
+        opacity: 0.75;
+    }
+
+    .product-badge {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background-color: var(--color-accent, #E5A93C);
+        color: white;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        border-radius: 20px;
+        text-transform: uppercase;
+    }
+
+    .card-details {
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .product-title {
+        font-family: var(--font-heading, 'Plus Jakarta Sans', sans-serif);
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--color-text);
+        margin: 0 0 0.5rem 0;
+        line-height: 1.4;
+    }
+
+    .product-desc-short {
+        font-size: 0.85rem;
+        color: var(--color-text-light);
+        margin: 0 0 1.25rem 0;
+        line-height: 1.5;
+        flex: 1;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .card-footer-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: auto;
+    }
+
+    .price-tag {
+        font-family: var(--font-heading, 'Plus Jakarta Sans', sans-serif);
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--color-primary);
+    }
+
+    .btn-card-view {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border-radius: var(--radius-sm, 4px);
+    }
+
+    .loading-state-wrapper {
+        text-align: center;
+        padding: 5rem 2rem;
+        background: white;
+        border-radius: var(--radius-lg, 12px);
+        border: 1px solid var(--color-border-light, #EEECE6);
+    }
+
+    .spinner-custom {
+        width: 40px;
+        height: 40px;
+        border: 4px solid var(--color-border-light, #EEECE6);
+        border-top-color: var(--color-primary);
+        border-radius: 50%;
+        animation: spin-anim 1s linear infinite;
+        margin: 0 auto 1rem auto;
+    }
+
+    .empty-state-card {
+        padding: 5rem 2rem;
+        border-radius: var(--radius-lg, 12px);
+        border: 1px solid var(--color-border, #E0DDD5);
+    }
+
+    .empty-state-icon {
+        font-size: 3.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .empty-state-card h3 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-text);
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state-card p {
+        font-size: 0.95rem;
+        color: var(--color-text-light);
+        margin: 0;
+    }
+
+    @@keyframes spin-anim {
+        to { transform: rotate(360deg); }
+    }
+
+    @@media (max-width: 992px) {
+        .products-layout {
+            grid-template-columns: 1fr;
+        }
+        .filters-sidebar {
+            position: relative;
+            top: 0;
+        }
+        .products-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .products-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
 @code {
     [Parameter] public string? slug { get; set; }
-
     [SupplyParameterFromQuery] public string? q { get; set; }
 
-
-
     private List<ProductDto> products = new();
+    private List<CategoryDto> categories = new();
+    private CategoryDto? activeCategory;
 
     private bool isLoading = true;
-
-
-
     private decimal? minPrice;
-
     private decimal? maxPrice;
-
     private string sortBy = "newest";
-
-
+    private int? selectedCategoryId;
 
     protected override async Task OnParametersSetAsync()
-
     {
+        // Load categories if empty
+        if (!categories.Any())
+        {
+            try
+            {
+                categories = await CategoryService.GetAllAsync();
+            }
+            catch {}
+        }
+
+        // Handle path parameter category slug
+        if (!string.IsNullOrEmpty(slug))
+        {
+            activeCategory = categories.FirstOrDefault(c => c.Slug == slug) 
+                             ?? await CategoryService.GetBySlugAsync(slug);
+            if (activeCategory != null)
+            {
+                selectedCategoryId = activeCategory.Id;
+            }
+        }
+        else
+        {
+            selectedCategoryId = null;
+            activeCategory = null;
+        }
 
         await LoadProductsAsync();
-
     }
-
-
 
     private async Task LoadProductsAsync()
-
     {
-
         isLoading = true;
+        StateHasChanged();
 
         try
-
         {
-
             var filter = new ProductSearchFilterDto
-                {
-                    Query = q,
-
-                    MinPrice = minPrice,
-
-                    MaxPrice = maxPrice,
-
-                    Page = 1,
-
-                    PageSize = 20
-
-                };
+            {
+                Query = q,
+                CategoryId = selectedCategoryId,
+                MinPrice = minPrice,
+                MaxPrice = maxPrice,
+                SortBy = sortBy,
+                Page = 1,
+                PageSize = 20
+            };
 
             var result = await ProductService.SearchAsync(filter);
-
-            products = result.Items;
-
+            products = result.Items ?? new List<ProductDto>();
         }
-
         catch
-
         {
-
             products = new List<ProductDto>();
-
         }
-
         finally
-
         {
-
             isLoading = false;
-
         }
-
     }
 
-
-
     private async Task ApplyFilters()
-
     {
-
         await LoadProductsAsync();
+    }
 
+    private async Task SelectCategory(int? categoryId)
+    {
+        selectedCategoryId = categoryId;
+        if (categoryId == null)
+        {
+            activeCategory = null;
+            if (!string.IsNullOrEmpty(slug))
+            {
+                NavManager.NavigateTo("/arama");
+            }
+            else
+            {
+                await LoadProductsAsync();
+            }
+        }
+        else
+        {
+            var cat = categories.FirstOrDefault(c => c.Id == categoryId);
+            if (cat != null)
+            {
+                activeCategory = cat;
+                NavManager.NavigateTo($"/kategori/{cat.Slug}");
+            }
+        }
+    }
+
+    private async Task ClearAllFilters()
+    {
+        minPrice = null;
+        maxPrice = null;
+        selectedCategoryId = null;
+        activeCategory = null;
+        sortBy = "newest";
+        NavManager.NavigateTo("/arama");
     }
 }

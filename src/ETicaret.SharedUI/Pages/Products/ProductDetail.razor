@@ -3,199 +3,456 @@
 @inject IProductService ProductService
 @inject ICartService CartService
 @inject NavigationManager NavManager
+@using ETicaret.Business.DTOs
+@using System.Globalization
 
-<PageTitle>@product?.Title - E-Ticaret</PageTitle>
+<PageTitle>@product?.Title - Detay | ETicaret.com</PageTitle>
 
-<div class="container padding-y-xl">
-    @if (isLoading)
-
-    {
-        <div class="text-center padding-xl">Yükleniyor...</div>
-    }
-
-    else if (product == null)
-
-    {
-        <div class="text-center padding-xl glass">Ürün bulunamadı.</div>
-    }
-
-    else
-
-    {
-        <div class="row mb-5">
-            <!-- Sol: Resim Galerisi -->
-            <div class="col-md-6">
-                <div class="product-gallery glass padding-lg text-center"
-                    style="border-radius: var(--radius-lg); height: 400px; display: flex; align-items: center; justify-content: center; font-size: 6rem;">
-                    📦
-                </div>
+<div class="product-detail-container padding-y-lg">
+    <div class="container">
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                <div class="spinner"></div>
+                <p>Ürün detayları yükleniyor...</p>
             </div>
-
-            <!-- Sağ: Ürün Bilgileri -->
-            <div class="col-md-6">
-                <h1 style="color: var(--color-primary); font-size: 2rem; margin-bottom: 0.5rem;">@product.Title</h1>
-                <p class="text-muted mb-4">Marka: <strong>Bilinmiyor</strong> | Stok Kodu:
-                    <strong>#@product.Id.ToString().Substring(0, 8)</strong></p>
-
-                <div class="price-display mb-4"
-                    style="font-size: 2rem; font-weight: 800; color: var(--color-text-primary);">
-                    @product.Price.ToString("C2")
+        }
+        else if (product == null)
+        {
+            <div class="empty-state glass">
+                <div class="empty-icon">😢</div>
+                <h3>Ürün bulunamadı.</h3>
+                <a href="/arama" class="btn btn-primary mt-4">Alışverişe Geri Dön</a>
+            </div>
+        }
+        else
+        {
+            <!-- Ana Ürün Kartı Grid -->
+            <div class="product-detail-grid glass">
+                <!-- Sol: Görsel Galerisi -->
+                <div class="product-gallery-section">
+                    <div class="main-image-wrapper">
+                        <span class="gallery-icon">📦</span>
+                        <div class="product-detail-badge">Yeni Ürün</div>
+                    </div>
                 </div>
 
-                <div class="mb-4">
-                    <p>@product.Description</p>
-                </div>
-
-                <div class="mb-4">
-                    <strong>Stok Durumu:</strong>
-                    @if (product.StockQuantity > 0)
-                    {
-                        <span class="text-success">Stokta Var (@product.StockQuantity adet)</span>
-                    }
-                    else
-                    {
-                        <span class="text-danger">Tükendi</span>
-                    }
-                </div>
-
-                <div class="d-flex gap-3 mb-4 align-items-center">
-                    <div class="input-group" style="width: 120px;">
-                        <button class="btn btn-outline-secondary" @onclick="DecreaseQuantity">-</button>
-                        <input type="number" class="form-control text-center" @bind="quantity" min="1"
-                            max="@product.StockQuantity" />
-                        <button class="btn btn-outline-secondary" @onclick="IncreaseQuantity">+</button>
+                <!-- Sağ: Bilgi Paneli -->
+                <div class="product-info-section">
+                    <div class="category-breadcrumbs">
+                        <span>Anasayfa</span> / <span>Ürünler</span> / <span class="active-crumb">@product.Title</span>
                     </div>
 
-                    <button class="btn btn-primary flex-grow-1"
-                        style="background-color: var(--color-accent); border-color: var(--color-accent);"
-                        @onclick="AddToCart" disabled="@(product.StockQuantity == 0)">
-                        🛒 Sepete Ekle
-                    </button>
-                </div>
-            </div>
-        </div>
+                    <h1 class="product-main-title">@product.Title</h1>
+                    
+                    <div class="meta-row">
+                        <span class="meta-item">Stok Kodu: <strong>#@product.Id.ToString().Substring(0, 8).ToUpper()</strong></span>
+                    </div>
 
-        <!-- Alt: Tablar (Açıklama, Yorumlar) -->
-        <div class="product-tabs glass padding-lg" style="border-radius: var(--radius-lg);">
-            <ul class="nav nav-tabs mb-4" style="border-bottom: 2px solid var(--color-border);">
-                <li class="nav-item">
-                    <button class="nav-link active"
-                        style="font-weight: 600; color: var(--color-primary); border: none; background: transparent;">Açıklama</button>
-                </li>
-            </ul>
-            <div class="tab-content">
-                <div class="tab-pane show active">
-                    <p>@product.Description</p>
+                    <div class="price-box">
+                        <span class="price-value">@product.Price.ToString("C2", new CultureInfo("tr-TR"))</span>
+                    </div>
+
+                    <div class="product-desc-box">
+                        <h3>Ürün Açıklaması</h3>
+                        <p>@product.Description</p>
+                    </div>
+
+                    <div class="stock-status-box">
+                        <span class="status-label">Stok Durumu:</span>
+                        @if (product.StockQuantity > 0)
+                        {
+                            <span class="status-badge instock">🟢 Stokta Var (@product.StockQuantity adet)</span>
+                        }
+                        else
+                        {
+                            <span class="status-badge outofstock">🔴 Tükendi</span>
+                        }
+                    </div>
+
+                    <!-- Satın Alma Paneli -->
+                    <div class="purchase-actions">
+                        <div class="quantity-selector-box">
+                            <button type="button" class="qty-btn" @onclick="DecreaseQuantity">-</button>
+                            <span class="qty-display">@quantity</span>
+                            <button type="button" class="qty-btn" @onclick="IncreaseQuantity">+</button>
+                        </div>
+
+                        <button class="btn btn-primary btn-add-cart" @onclick="AddToCart" disabled="@(product.StockQuantity == 0)">
+                            🛒 Sepete Ekle
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    }
+
+            <!-- Alt Sekmeler / Özellikler -->
+            <div class="product-extra-details glass mt-8">
+                <div class="tab-header">
+                    <button class="tab-btn active">Detaylı Bilgi</button>
+                </div>
+                <div class="tab-body-content">
+                    <p>Bu ürün ETicaret güvencesiyle satılmaktadır. Tüm ürünlerimizde 14 gün iade garantisi ve hızlı kargo seçenekleri sunulmaktadır. Herhangi bir sorunuzda müşteri hizmetlerimizle iletişime geçebilirsiniz.</p>
+                </div>
+            </div>
+        }
+    </div>
 </div>
+
+<style>
+    .product-detail-container {
+        font-family: var(--font-body, 'Inter', sans-serif);
+        background-color: var(--color-bg, #FBFBFA);
+        min-height: 80vh;
+    }
+
+    .loading-state {
+        text-align: center;
+        padding: 5rem 0;
+    }
+
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid var(--color-border-light, #EEECE6);
+        border-top-color: var(--color-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1.5rem;
+    }
+
+    .empty-state {
+        padding: 4rem 2rem;
+        text-align: center;
+        border-radius: var(--radius-lg, 12px);
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+
+    .product-detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3rem;
+        background: white;
+        padding: 2.5rem;
+        border-radius: var(--radius-xl, 16px);
+        border: 1px solid var(--color-border, #E0DDD5);
+        box-shadow: var(--shadow-md);
+    }
+
+    .product-gallery-section {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .main-image-wrapper {
+        background-color: var(--color-surface-alt, #F5F5F0);
+        height: 450px;
+        border-radius: var(--radius-lg, 12px);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--color-border-light, #EEECE6);
+    }
+
+    .gallery-icon {
+        font-size: 8rem;
+        opacity: 0.8;
+    }
+
+    .product-detail-badge {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: var(--color-accent, #E5A93C);
+        color: white;
+        padding: 0.4rem 0.8rem;
+        font-weight: 700;
+        font-size: 0.8rem;
+        border-radius: 30px;
+        text-transform: uppercase;
+    }
+
+    .product-info-section {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+
+    .category-breadcrumbs {
+        font-size: 0.85rem;
+        color: var(--color-text-muted);
+        margin-bottom: 1rem;
+    }
+
+    .active-crumb {
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+
+    .product-main-title {
+        font-family: var(--font-heading, 'Plus Jakarta Sans', sans-serif);
+        font-size: 2.25rem;
+        font-weight: 800;
+        color: var(--color-primary);
+        line-height: 1.25;
+        margin: 0 0 1rem 0;
+    }
+
+    .meta-row {
+        font-size: 0.9rem;
+        color: var(--color-text-light);
+        margin-bottom: 1.5rem;
+    }
+
+    .price-box {
+        background-color: var(--color-surface-alt, #F5F5F0);
+        padding: 1.25rem 2rem;
+        border-radius: var(--radius-md, 8px);
+        width: fit-content;
+        margin-bottom: 2rem;
+    }
+
+    .price-value {
+        font-family: var(--font-heading, 'Plus Jakarta Sans', sans-serif);
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--color-text);
+        letter-spacing: -0.5px;
+    }
+
+    .product-desc-box {
+        margin-bottom: 2rem;
+    }
+
+    .product-desc-box h3 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--color-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .product-desc-box p {
+        font-size: 0.95rem;
+        color: var(--color-text-light);
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    .stock-status-box {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 2rem;
+        font-size: 0.95rem;
+    }
+
+    .status-label {
+        font-weight: 600;
+        color: var(--color-text);
+    }
+
+    .status-badge {
+        font-weight: 700;
+        padding: 0.3rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+    }
+
+    .status-badge.instock {
+        background-color: #E8F5E9;
+        color: #2E7D32;
+    }
+
+    .status-badge.outofstock {
+        background-color: #FFEBEE;
+        color: #C62828;
+    }
+
+    .purchase-actions {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .quantity-selector-box {
+        display: flex;
+        align-items: center;
+        border: 2px solid var(--color-border, #E0DDD5);
+        border-radius: 30px;
+        padding: 0.3rem 0.5rem;
+        background: white;
+    }
+
+    .qty-btn {
+        background: none;
+        border: none;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: var(--color-primary);
+        cursor: pointer;
+        transition: background-color var(--transition-fast);
+        border-radius: 50%;
+    }
+
+    .qty-btn:hover {
+        background-color: var(--color-surface-alt, #F5F5F0);
+    }
+
+    .qty-display {
+        font-weight: 700;
+        font-size: 1.1rem;
+        width: 40px;
+        text-align: center;
+        color: var(--color-text);
+    }
+
+    .btn-add-cart {
+        flex: 1;
+        padding: 1.1rem;
+        font-size: 1.1rem;
+        font-weight: 700;
+        background-color: var(--color-accent, #E5A93C);
+        box-shadow: 0 4px 15px rgba(229, 169, 60, 0.3);
+    }
+
+    .btn-add-cart:hover {
+        background-color: var(--color-accent-dark, #C8902E);
+        box-shadow: 0 8px 25px rgba(229, 169, 60, 0.4);
+    }
+
+    .btn-add-cart:disabled {
+        background-color: var(--color-text-muted);
+        box-shadow: none;
+        cursor: not-allowed;
+    }
+
+    .product-extra-details {
+        background: white;
+        border-radius: var(--radius-lg, 12px);
+        border: 1px solid var(--color-border-light, #EEECE6);
+        overflow: hidden;
+    }
+
+    .tab-header {
+        border-bottom: 1px solid var(--color-border-light, #EEECE6);
+        background-color: var(--color-surface-alt, #F5F5F0);
+        padding: 0 1.5rem;
+    }
+
+    .tab-btn {
+        background: none;
+        border: none;
+        padding: 1.25rem 1.5rem;
+        font-weight: 700;
+        color: var(--color-primary);
+        border-bottom: 3px solid var(--color-primary);
+        cursor: pointer;
+        font-size: 0.95rem;
+    }
+
+    .tab-body-content {
+        padding: 2rem;
+        color: var(--color-text-light);
+        line-height: 1.7;
+        font-size: 0.95rem;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    @@media (max-width: 768px) {
+        .product-detail-grid {
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            padding: 1.5rem;
+        }
+
+        .main-image-wrapper {
+            height: 300px;
+        }
+
+        .product-main-title {
+            font-size: 1.75rem;
+        }
+
+        .purchase-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .quantity-selector-box {
+            justify-content: space-between;
+        }
+    }
+</style>
 
 @code {
     [Parameter] public Guid? id { get; set; }
-
     [Parameter] public string? slug { get; set; }
 
-
-
     private ProductDto? product;
-
     private bool isLoading = true;
-
     private int quantity = 1;
 
-
-
     protected override async Task OnParametersSetAsync()
-
     {
-
         isLoading = true;
-
         try
-
         {
-
             if (id.HasValue)
-
             {
-
                 product = await ProductService.GetByIdAsync(id.Value);
-
             }
-
             else if (!string.IsNullOrEmpty(slug))
-
             {
-
                 product = await ProductService.GetBySlugAsync(slug);
-
             }
-
         }
-
         catch
-
         {
-
             product = null;
-
         }
-
         finally
-
         {
-
             isLoading = false;
-
         }
-
     }
-
-
 
     private void DecreaseQuantity()
-
     {
-
         if (quantity > 1) quantity--;
-
     }
-
-
 
     private void IncreaseQuantity()
-
     {
-
         if (product != null && quantity < product.StockQuantity) quantity++;
-
     }
 
-
-
     private async Task AddToCart()
-
     {
-
         if (product == null || product.StockQuantity == 0) return;
-
-
 
         try
         {
             await CartService.AddItemAsync(null, null, product.Id, quantity);
             NavManager.NavigateTo("/sepet");
         }
-
         catch (Exception ex)
-
         {
-
             Console.WriteLine($"Sepete eklenirken hata: {ex.Message}");
-
         }
-
     }
 }

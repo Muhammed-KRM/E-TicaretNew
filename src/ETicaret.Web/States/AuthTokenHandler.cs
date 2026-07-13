@@ -35,16 +35,6 @@ public class AuthTokenHandler : DelegatingHandler
 
         var response = await base.SendAsync(request, cancellationToken);
         
-        // 401/403 hatalarını yutma — çağıran servisin ele alması için response döndür
-        // Sadece gerçek API hataları (400, 500 vb.) için exception fırlat
-        if (!response.IsSuccessStatusCode 
-            && response.StatusCode != System.Net.HttpStatusCode.Unauthorized 
-            && response.StatusCode != System.Net.HttpStatusCode.Forbidden)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            throw new HttpRequestException($"API Hatası ({response.StatusCode}): {errorContent}");
-        }
-
         return response;
     }
 }

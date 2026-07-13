@@ -1,3 +1,281 @@
-﻿@page "/iletisim"
-<PageTitle>Ä°letiÅŸim</PageTitle>
-<h1>Ä°letiÅŸim</h1>
+@page "/iletisim"
+@inject ETicaret.Business.Interfaces.IContactService ContactService
+@using ETicaret.Business.DTOs
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+<PageTitle>İletişim | ETicaret.com</PageTitle>
+
+<div class="contact-page">
+
+    <!-- Hero -->
+    <section class="contact-hero">
+        <div class="container">
+            <h1>İletişim</h1>
+            <p>Sorularınız için buradayız. Size 24 saat içinde geri döneceğiz.</p>
+        </div>
+    </section>
+
+    <!-- Content -->
+    <section class="container contact-content">
+
+        <!-- Info Cards -->
+        <div class="contact-cards-row">
+            <div class="contact-info-card">
+                <div class="contact-card-icon">📧</div>
+                <h3>E-posta</h3>
+                <p>destek@eticaret.com</p>
+            </div>
+            <div class="contact-info-card">
+                <div class="contact-card-icon">📞</div>
+                <h3>Telefon</h3>
+                <p>+90 212 000 00 00</p>
+            </div>
+            <div class="contact-info-card">
+                <div class="contact-card-icon">🕐</div>
+                <h3>Çalışma Saatleri</h3>
+                <p>Pzt–Cum: 09:00–18:00</p>
+            </div>
+        </div>
+
+        <!-- Message Form -->
+        <div class="contact-form-wrapper">
+            <div class="contact-form-card glass">
+                <h2>Bize Mesaj Gönderin</h2>
+
+                @if (isSuccess)
+                {
+                    <div class="alert-success-box">
+                        ✅ Mesajınız başarıyla iletildi! En kısa sürede size döneceğiz.
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(errorMsg))
+                {
+                    <div class="alert-danger-box">❌ @errorMsg</div>
+                }
+
+                <EditForm Model="contactForm" OnValidSubmit="SendMessage">
+                    <DataAnnotationsValidator />
+                    <div class="form-group">
+                        <label>Ad Soyad</label>
+                        <InputText @bind-Value="contactForm.FullName" class="form-input" placeholder="Adınız Soyadınız" />
+                        <ValidationMessage For="() => contactForm.FullName" />
+                    </div>
+                    <div class="form-group">
+                        <label>E-posta</label>
+                        <InputText @bind-Value="contactForm.Email" class="form-input" placeholder="ornek@email.com" />
+                        <ValidationMessage For="() => contactForm.Email" />
+                    </div>
+                    <div class="form-group">
+                        <label>Konu</label>
+                        <InputText @bind-Value="contactForm.Subject" class="form-input" placeholder="Mesajınızın konusu" />
+                        <ValidationMessage For="() => contactForm.Subject" />
+                    </div>
+                    <div class="form-group">
+                        <label>Mesaj</label>
+                        <InputTextArea @bind-Value="contactForm.Message" class="form-input" rows="5" placeholder="Mesajınızı buraya yazın..." />
+                        <ValidationMessage For="() => contactForm.Message" />
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%; padding: 1rem;" disabled="@isSending">
+                        @(isSending ? "Gönderiliyor..." : "Gönder 📩")
+                    </button>
+                </EditForm>
+            </div>
+        </div>
+    </section>
+</div>
+
+<style>
+    .contact-page {
+        font-family: var(--font-body, 'Inter', sans-serif);
+    }
+
+    .contact-hero {
+        background: linear-gradient(135deg, var(--color-primary, #3C4E2D) 0%, #2B3920 100%);
+        color: white;
+        padding: 5rem 0 4rem;
+        text-align: center;
+    }
+
+    .contact-hero h1 {
+        font-family: var(--font-heading, 'Plus Jakarta Sans', sans-serif);
+        font-size: 3rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        color: white;
+    }
+
+    .contact-hero p {
+        font-size: 1.2rem;
+        opacity: 0.85;
+        color: white;
+    }
+
+    .contact-content {
+        padding: 4rem 1rem;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .contact-cards-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .contact-info-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem 1.5rem;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.07);
+        border: 1px solid #E0DDD5;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .contact-info-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    }
+
+    .contact-card-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .contact-info-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #3C4E2D;
+        margin-bottom: 0.5rem;
+    }
+
+    .contact-info-card p {
+        color: #5A5E5B;
+        font-size: 0.95rem;
+        margin: 0;
+    }
+
+    .contact-form-wrapper {
+        display: flex;
+        justify-content: center;
+    }
+
+    .contact-form-card {
+        background: white;
+        border-radius: 20px;
+        padding: 3rem;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+        border: 1px solid #E0DDD5;
+        width: 100%;
+    }
+
+    .contact-form-card h2 {
+        font-family: var(--font-heading, 'Plus Jakarta Sans', sans-serif);
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #2D312E;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #3C4E2D;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.85rem 1rem;
+        border: 1.5px solid #E0DDD5;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        font-family: var(--font-body, 'Inter', sans-serif);
+        color: #2D312E;
+        background: #FBFBFA;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        box-sizing: border-box;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #3C4E2D;
+        box-shadow: 0 0 0 3px rgba(60,78,45,0.15);
+    }
+
+    .form-input[rows] {
+        resize: vertical;
+        min-height: 120px;
+    }
+
+    .alert-success-box {
+        background: #D4EDDA;
+        color: #155724;
+        border: 1px solid #C3E6CB;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+        font-weight: 500;
+    }
+
+    .alert-danger-box {
+        background: #F8D7DA;
+        color: #721C24;
+        border: 1px solid #F5C6CB;
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+        font-weight: 500;
+    }
+
+    @@media (max-width: 768px) {
+        .contact-cards-row {
+            grid-template-columns: 1fr;
+        }
+
+        .contact-hero h1 {
+            font-size: 2rem;
+        }
+
+        .contact-form-card {
+            padding: 2rem 1.25rem;
+        }
+    }
+</style>
+
+@code {
+    private ContactMessageCreateDto contactForm = new();
+    private bool isSending;
+    private bool isSuccess;
+    private string? errorMsg;
+
+    private async Task SendMessage()
+    {
+        isSending = true;
+        errorMsg = null;
+        isSuccess = false;
+        try
+        {
+            await ContactService.SendMessageAsync(contactForm);
+            isSuccess = true;
+            contactForm = new ContactMessageCreateDto();
+        }
+        catch (Exception ex)
+        {
+            errorMsg = "Mesaj gönderilemedi. Lütfen tekrar deneyin.";
+        }
+        finally
+        {
+            isSending = false;
+        }
+    }
+}

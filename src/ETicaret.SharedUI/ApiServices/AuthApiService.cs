@@ -35,13 +35,26 @@ public class AuthApiService : IAuthService
                         foreach (var msg in err.Value.EnumerateArray())
                             validationErrors.Add(msg.GetString()!);
                     }
+                    else if (err.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        validationErrors.Add(err.Value.GetString()!);
+                    }
                 }
                 if (validationErrors.Any()) return string.Join("<br/>", validationErrors);
             }
-        }
-        catch { /* JSON değilse düz string dön */ }
 
-        return "Bağlantı hatası. (" + response.StatusCode + ")";
+            if (root.TryGetProperty("detail", out var detailProp) && detailProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                return detailProp.GetString()!;
+
+            if (root.TryGetProperty("title", out var titleProp) && titleProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                return titleProp.GetString()!;
+        }
+        catch 
+        { 
+            return errorString; 
+        }
+
+        return errorString;
     }
 
     public async Task<AuthResultDto> RegisterAsync(UserRegisterDto dto)
