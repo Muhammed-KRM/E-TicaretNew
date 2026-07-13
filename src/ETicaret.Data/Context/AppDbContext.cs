@@ -22,6 +22,8 @@ public class AppDbContext : DbContext
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Wishlist> Wishlists => Set<Wishlist>();
+    public DbSet<Refund> Refunds => Set<Refund>();
+    public DbSet<StockNotification> StockNotifications => Set<StockNotification>();
 
     public DbSet<City> Cities => Set<City>();
     public DbSet<District> Districts => Set<District>();

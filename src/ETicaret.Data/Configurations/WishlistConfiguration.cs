@@ -42,6 +42,6 @@ public class WishlistConfiguration : IEntityTypeConfiguration<Wishlist>
         
         // Default values
         builder.Property(w => w.CreatedAt)
-            .HasDefaultValueSql("GETUTCDATE()");
+            .HasDefaultValueSql("NOW()");
     }
 }
