@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<Wishlist> Wishlists => Set<Wishlist>();
 
     public DbSet<City> Cities => Set<City>();
     public DbSet<District> Districts => Set<District>();
