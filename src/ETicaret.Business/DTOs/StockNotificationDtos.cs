@@ -55,6 +55,12 @@ public class StockNotificationDto
 public class SubscribeStockNotificationRequest
 {
     /// <summary>
+    /// Ürün ID'si
+    /// </summary>
+    [Required(ErrorMessage = "Ürün ID'si zorunludur")]
+    public Guid ProductId { get; set; }
+    
+    /// <summary>
     /// Bildirim gönderilecek email adresi
     /// </summary>
     [Required(ErrorMessage = "Email adresi zorunludur")]

@@ -27,6 +27,10 @@ public static class DependencyInjection
         services.AddScoped<IAddressService, AddressManager>();
         services.AddScoped<ICouponService, CouponManager>();
         services.AddScoped<IReviewService, ReviewManager>();
+        services.AddScoped<IWishlistService, WishlistManager>();
+        services.AddScoped<IRefundService, RefundManager>();
+        services.AddScoped<IStockNotificationService, StockNotificationManager>();
+        services.AddScoped<IInvoiceService, InvoiceManager>();
 
         services.AddMemoryCache();
 
