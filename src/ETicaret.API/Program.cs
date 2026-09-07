@@ -210,38 +210,8 @@ using (var scope = app.Services.CreateScope())
     
     await DatabaseSeeder.SeedAsync(context);
     
-    // Admin kullanıcı seed — bilgiler appsettings/environment'tan okunur, kaynak koda gömülmez
-    var adminEmail = builder.Configuration["AdminSeed:Email"]
-        ?? throw new InvalidOperationException("AdminSeed:Email konfigürasyonu eksik.");
-    var adminPassword = builder.Configuration["AdminSeed:Password"]
-        ?? throw new InvalidOperationException("AdminSeed:Password konfigürasyonu eksik.");
-
-    var existingAdmin = context.Users
-        .FirstOrDefault(u => u.Role == ETicaret.Data.Enums.UserRole.Admin);
-
-    if (existingAdmin == null)
-    {
-        context.Users.Add(new ETicaret.Data.Entities.User
-        {
-            Email = adminEmail,
-            PasswordHash = BC.HashPassword(adminPassword),
-            FullName = "Site Yöneticisi",
-            Role = ETicaret.Data.Enums.UserRole.Admin,
-            IsActive = true,
-            IsEmailVerified = true,
-            WalletBalance = 0
-        });
-        await context.SaveChangesAsync();
-        logger.LogInformation("Admin kullanıcı oluşturuldu: {Email}", adminEmail);
-    }
-    else if (existingAdmin.Email != adminEmail || !BC.Verify(adminPassword, existingAdmin.PasswordHash))
-    {
-        // E-posta veya şifre değişmişse güncelle
-        existingAdmin.Email = adminEmail;
-        existingAdmin.PasswordHash = BC.HashPassword(adminPassword);
-        await context.SaveChangesAsync();
-        logger.LogInformation("Admin bilgileri güncellendi: {Email}", adminEmail);
-    }
+    // Admin ve test kullanıcıları seed
+    await ETicaret.Data.SeedData.AdminSeeder.SeedAllAsync(context);
 
     var settingService = scope.ServiceProvider.GetRequiredService<ISettingService>();
     await settingService.InitializeDefaultsAsync();

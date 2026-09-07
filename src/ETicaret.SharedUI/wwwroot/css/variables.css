@@ -58,3 +58,39 @@
     --font-heading: 'Plus Jakarta Sans', sans-serif;
     --font-body: 'Inter', sans-serif;
 }
+
+/* === DARK MODE === */
+[data-theme="dark"],
+.dark {
+    /* Ana Palet - Dark Mode */
+    --color-bg:              #1A1D1A; /* Koyu yeşilimsi gri arka plan */
+    --color-primary:         #6B8E5C; /* Daha açık yeşil - okunabilirlik için */
+    --color-primary-light:   #7FA56F;
+    --color-primary-dark:    #5A7A4D;
+    --color-primary-rgb:     107, 142, 92;
+    --color-accent:          #F0C56A; /* Daha açık altın - dark mode'da daha iyi görünür */
+    --color-accent-light:    #F5D68C;
+    --color-accent-dark:     #E5B555;
+    --color-accent-rgb:      240, 197, 106;
+    
+    --color-text:            #E8EBE8;
+    --color-text-light:      #C0C5C0;
+    --color-text-muted:      #8A8F8A;
+
+    /* Fonksiyonel */
+    --color-success:         #6B8E5C;
+    --color-warning:         #F0C56A;
+    --color-danger:          #E57373;
+    --color-info:            #64B5F6;
+
+    /* Yüzeyler */
+    --color-surface:         #242824;
+    --color-surface-alt:     #2D322D;
+    --color-border:          #3A423A;
+    --color-border-light:    #323832;
+
+    /* Gölge - Dark mode için daha belirgin */
+    --shadow-sm:   0 2px 8px rgba(0,0,0,0.3);
+    --shadow-md:   0 5px 15px rgba(0,0,0,0.4);
+    --shadow-lg:   0 10px 25px rgba(0,0,0,0.5);
+}

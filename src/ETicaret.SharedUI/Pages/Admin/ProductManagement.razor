@@ -1,39 +1,494 @@
 @page "/admin/urun-yonetimi"
 @page "/admin/urun-ekle"
 @page "/admin/urun-duzenle/{id:guid}"
+@using ETicaret.Business.DTOs
+@using ETicaret.Business.Interfaces
 @inject IProductService ProductService
+@inject ICategoryService CategoryService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@attribute [Authorize(Roles = "Admin")]
 
 <PageTitle>Ürün Yönetimi | ETicaret.com Admin</PageTitle>
 
 <div class="container padding-y-xl">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Ürün Yönetimi</h1>
-        <a href="/admin/urun-ekle" class="btn btn-primary">➕ Yeni Ürün Ekle</a>
-    </div>
+    @if (showForm)
+    {
+        <!-- ÜRÜN EKLEME/DÜZENLEME FORMU -->
+        <div class="mb-4">
+            <button class="btn btn-secondary" @onclick="CancelForm">
+                ← Listeye Dön
+            </button>
+        </div>
 
-    <div class="glass" style="border-radius: var(--radius-lg); padding: 1.5rem; overflow-x: auto;">
-        <table class="table table-hover align-middle">
-            <thead>
-                <tr>
-                    <th>Görsel</th>
-                    <th>Ürün Adı</th>
-                    <th>Kategori</th>
-                    <th>Fiyat</th>
-                    <th>Stok</th>
-                    <th>Durum</th>
-                    <th>İşlemler</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Liste buraya gelecek -->
-                <tr>
-                    <td colspan="7" class="text-center py-4 text-muted">Henüz ürün bulunmamaktadır.</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+        <div class="glass" style="border-radius: var(--radius-lg); padding: 2rem;">
+            <h2 class="mb-4">@(isEditMode ? "Ürün Düzenle" : "Yeni Ürün Ekle")</h2>
+            
+            <EditForm Model="productForm" OnValidSubmit="SaveProduct">
+                <DataAnnotationsValidator />
+                
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <label class="form-label">Ürün Adı *</label>
+                            <InputText @bind-Value="productForm.Title" class="form-control" placeholder="Ürün başlığı giriniz" />
+                            <ValidationMessage For="@(() => productForm.Title)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Açıklama *</label>
+                            <InputTextArea @bind-Value="productForm.Description" class="form-control" rows="5" 
+                                          placeholder="Ürün detaylı açıklaması (minimum 20 karakter)" />
+                            <ValidationMessage For="@(() => productForm.Description)" />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Kategori *</label>
+                                <InputSelect @bind-Value="productForm.CategoryId" class="form-control">
+                                    <option value="0">-- Kategori Seçiniz --</option>
+                                    @foreach (var category in categories)
+                                    {
+                                        <option value="@category.Id">@category.Name</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => productForm.CategoryId)" />
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Marka</label>
+                                <InputText @bind-Value="productForm.Brand" class="form-control" placeholder="Marka adı" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Fiyat (TL) *</label>
+                                <InputNumber @bind-Value="productForm.Price" class="form-control" placeholder="0.00" step="0.01" />
+                                <ValidationMessage For="@(() => productForm.Price)" />
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">İndirimli Fiyat (TL)</label>
+                                <InputNumber @bind-Value="productForm.DiscountedPrice" class="form-control" placeholder="0.00" step="0.01" />
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Stok Miktarı *</label>
+                                <InputNumber @bind-Value="productForm.StockQuantity" class="form-control" placeholder="0" />
+                                <ValidationMessage For="@(() => productForm.StockQuantity)" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">SKU</label>
+                                <InputText @bind-Value="productForm.SKU" class="form-control" placeholder="Stok kodu" />
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Ağırlık (kg)</label>
+                                <InputNumber @bind-Value="productForm.Weight" class="form-control" placeholder="0.00" step="0.01" />
+                            </div>
+                        </div>
+
+                        @if (isEditMode)
+                        {
+                            <div class="form-check mb-3">
+                                <InputCheckbox @bind-Value="((ProductUpdateDto)productForm).IsActive" class="form-check-input" id="isActiveCheck" />
+                                <label class="form-check-label" for="isActiveCheck">
+                                    Ürün Aktif
+                                </label>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Ürün Görselleri</label>
+                            <div class="image-upload-box">
+                                <input type="text" @bind="newImageUrl" class="form-control mb-2" placeholder="Görsel URL'si giriniz" />
+                                <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="AddImageUrl">
+                                    ➕ Görsel Ekle
+                                </button>
+                            </div>
+                            
+                            @if (productForm.ImageUrls.Any())
+                            {
+                                <div class="mt-3">
+                                    <p class="small text-muted">Yüklenen Görseller:</p>
+                                    @foreach (var (img, index) in productForm.ImageUrls.Select((url, i) => (url, i)))
+                                    {
+                                        <div class="image-preview-item">
+                                            <img src="@img" alt="Ürün görseli" class="img-thumbnail" style="max-height: 80px;" />
+                                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => RemoveImageUrl(index)">
+                                                ✕
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="small text-muted mt-2">Henüz görsel eklenmedi</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4" />
+
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelForm">İptal</button>
+                    <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        @(isEditMode ? "Güncelle" : "Kaydet")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    }
+    else
+    {
+        <!-- ÜRÜN LİSTESİ -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Ürün Yönetimi</h1>
+            <button class="btn btn-primary" @onclick="ShowAddProductForm">
+                ➕ Yeni Ürün Ekle
+            </button>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="glass text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Yükleniyor...</span>
+                </div>
+                <p class="mt-3 text-muted">Ürünler yükleniyor...</p>
+            </div>
+        }
+        else
+        {
+            <div class="glass" style="border-radius: var(--radius-lg); padding: 1.5rem; overflow-x: auto;">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">Görsel</th>
+                            <th>Ürün Adı</th>
+                            <th>Kategori</th>
+                            <th>Fiyat</th>
+                            <th>Stok</th>
+                            <th>Durum</th>
+                            <th style="width: 150px;">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!products.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    Henüz ürün bulunmamaktadır.
+                                    <button class="btn btn-primary btn-sm mt-2" @onclick="ShowAddProductForm">
+                                        İlk Ürünü Ekle
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var product in products)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (product.ImageUrls.Any())
+                                        {
+                                            <img src="@product.ImageUrls.First()" alt="@product.Title" 
+                                                 class="img-thumbnail" style="max-width: 60px; max-height: 60px; object-fit: cover;" />
+                                        }
+                                        else
+                                        {
+                                            <div class="bg-secondary text-white d-flex align-items-center justify-content-center" 
+                                                 style="width: 60px; height: 60px; border-radius: 4px;">
+                                                📦
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <strong>@product.Title</strong>
+                                        @if (!string.IsNullOrEmpty(product.Brand))
+                                        {
+                                            <br /><small class="text-muted">@product.Brand</small>
+                                        }
+                                    </td>
+                                    <td>@product.CategoryName</td>
+                                    <td>
+                                        @if (product.DiscountedPrice.HasValue)
+                                        {
+                                            <span class="text-decoration-line-through text-muted">@product.Price.ToString("C2")</span>
+                                            <br />
+                                            <strong class="text-success">@product.DiscountedPrice.Value.ToString("C2")</strong>
+                                        }
+                                        else
+                                        {
+                                            <strong>@product.Price.ToString("C2")</strong>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge @(product.StockQuantity > 10 ? "bg-success" : product.StockQuantity > 0 ? "bg-warning" : "bg-danger")">
+                                            @product.StockQuantity
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(product.IsActive ? "bg-success" : "bg-secondary")">
+                                            @(product.IsActive ? "Aktif" : "Pasif")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowEditProductForm(product.Id)" title="Düzenle">
+                                                ✏️
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteProduct(product.Id)" title="Sil">
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
 </div>
+
+<style>
+    .image-upload-box {
+        border: 2px dashed var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        background: var(--color-surface-alt);
+    }
+
+    .image-preview-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        background: var(--color-surface);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-border);
+    }
+
+    .image-preview-item img {
+        flex-shrink: 0;
+    }
+
+    .image-preview-item button {
+        margin-left: auto;
+    }
+</style>
 
 @code {
     [Parameter] public Guid? id { get; set; }
+
+    private List<ProductDto> products = new();
+    private List<CategoryDto> categories = new();
+    private bool isLoading = true;
+    private bool showForm = false;
+    private bool isEditMode = false;
+    private bool isSaving = false;
+    private Guid? editingProductId = null;
+    private string newImageUrl = string.Empty;
+
+    private ProductCreateDto productForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategories();
+        
+        // URL'de id varsa düzenleme modunda aç
+        if (id.HasValue)
+        {
+            await ShowEditProductForm(id.Value);
+        }
+        else
+        {
+            await LoadProducts();
+        }
+    }
+
+    private async Task LoadCategories()
+    {
+        try
+        {
+            categories = await CategoryService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("ozelders.showSwal", "error", "Hata", 
+                $"Kategoriler yüklenirken hata oluştu: {ex.Message}", 0);
+        }
+    }
+
+    private async Task LoadProducts()
+    {
+        try
+        {
+            isLoading = true;
+            // Tüm ürünleri getir (search filter ile)
+            var result = await ProductService.SearchAsync(new ProductSearchFilterDto
+            {
+                PageSize = 1000 // Hepsini getir
+            });
+            products = result.Items;
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("ozelders.showSwal", "error", "Hata", 
+                $"Ürünler yüklenirken hata oluştu: {ex.Message}", 0);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowAddProductForm()
+    {
+        isEditMode = false;
+        editingProductId = null;
+        productForm = new ProductCreateDto();
+        showForm = true;
+    }
+
+    private async Task ShowEditProductForm(Guid productId)
+    {
+        try
+        {
+            isLoading = true;
+            var product = await ProductService.GetByIdAsync(productId);
+            
+            if (product == null)
+            {
+                await JS.InvokeVoidAsync("ozelders.showSwal", "error", "Hata", 
+                    "Ürün bulunamadı!", 0);
+                return;
+            }
+
+            isEditMode = true;
+            editingProductId = productId;
+            productForm = new ProductUpdateDto
+            {
+                CategoryId = product.CategoryId,
+                Title = product.Title,
+                Description = product.Description,
+                Price = product.Price,
+                DiscountedPrice = product.DiscountedPrice,
+                StockQuantity = product.StockQuantity,
+                Brand = product.Brand,
+                ImageUrls = product.ImageUrls.ToList(),
+                IsActive = product.IsActive
+            };
+            showForm = true;
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("ozelders.showSwal", "error", "Hata", 
+                $"Ürün yüklenirken hata oluştu: {ex.Message}", 0);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        isEditMode = false;
+        editingProductId = null;
+        productForm = new ProductCreateDto();
+        Navigation.NavigateTo("/admin/urun-yonetimi", forceLoad: false);
+    }
+
+    private void AddImageUrl()
+    {
+        if (!string.IsNullOrWhiteSpace(newImageUrl))
+        {
+            productForm.ImageUrls.Add(newImageUrl.Trim());
+            newImageUrl = string.Empty;
+        }
+    }
+
+    private void RemoveImageUrl(int index)
+    {
+        if (index >= 0 && index < productForm.ImageUrls.Count)
+        {
+            productForm.ImageUrls.RemoveAt(index);
+        }
+    }
+
+    private async Task SaveProduct()
+    {
+        try
+        {
+            isSaving = true;
+
+            if (isEditMode && editingProductId.HasValue)
+            {
+                await ProductService.UpdateAsync(editingProductId.Value, (ProductUpdateDto)productForm);
+                await JS.InvokeVoidAsync("ozelders.showSwal", "success", "Başarılı", 
+                    "Ürün başarıyla güncellendi.", 2000);
+            }
+            else
+            {
+                await ProductService.CreateAsync(productForm);
+                await JS.InvokeVoidAsync("ozelders.showSwal", "success", "Başarılı", 
+                    "Ürün başarıyla eklendi.", 2000);
+            }
+
+            CancelForm();
+            await LoadProducts();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("ozelders.showSwal", "error", "Hata", 
+                $"İşlem sırasında hata oluştu: {ex.Message}", 0);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeleteProduct(Guid productId)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("ozelders.showConfirm", 
+            "Ürünü Sil", 
+            "Bu ürünü silmek istediğinize emin misiniz? Bu işlem geri alınamaz!",
+            "Evet, Sil",
+            "İptal");
+
+        if (confirmed)
+        {
+            try
+            {
+                await ProductService.DeleteAsync(productId);
+                await JS.InvokeVoidAsync("ozelders.showSwal", "success", "Silindi", 
+                    "Ürün başarıyla silindi.", 2000);
+                await LoadProducts();
+            }
+            catch (Exception ex)
+            {
+                await JS.InvokeVoidAsync("ozelders.showSwal", "error", "Hata", 
+                    $"Ürün silinirken hata oluştu: {ex.Message}", 0);
+            }
+        }
+    }
 }

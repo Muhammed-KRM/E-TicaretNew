@@ -101,11 +101,11 @@
                                     <a href="/panel/dashboard" class="dropdown-item">📊 Kontrol Paneli</a>
                                     <a href="/panel/siparislerim" class="dropdown-item">📦 Siparişlerim</a>
                                     <a href="/panel/adreslerim" class="dropdown-item">📍 Adreslerim</a>
-                                    <a href="/panel/profil-ayarlari" class="dropdown-item">⚙️ Profil Ayarları</a>
+                                    <a href="/panel/ayarlar" class="dropdown-item">⚙️ Profil Ayarları</a>
                                     <hr class="dropdown-divider" />
                                     <AuthorizeView Roles="Admin" Context="adminCtx">
                                         <Authorized>
-                                            <a href="/admin" class="dropdown-item dropdown-admin">🛡️ Admin Paneli</a>
+                                            <a href="/admin/dashboard" class="dropdown-item dropdown-admin">🛡️ Admin Paneli</a>
                                             <hr class="dropdown-divider" />
                                         </Authorized>
                                     </AuthorizeView>
@@ -180,10 +180,10 @@
                     <a href="/panel/dashboard" class="mobile-menu-link" @onclick="CloseMobileMenu">📊 Kontrol Paneli</a>
                     <a href="/panel/siparislerim" class="mobile-menu-link" @onclick="CloseMobileMenu">📦 Siparişlerim</a>
                     <a href="/panel/adreslerim" class="mobile-menu-link" @onclick="CloseMobileMenu">📍 Adreslerim</a>
-                    <a href="/panel/profil-ayarlari" class="mobile-menu-link" @onclick="CloseMobileMenu">⚙️ Profil Ayarları</a>
+                    <a href="/panel/ayarlar" class="mobile-menu-link" @onclick="CloseMobileMenu">⚙️ Profil Ayarları</a>
                     <AuthorizeView Roles="Admin" Context="adminCtx">
                         <Authorized>
-                            <a href="/admin" class="mobile-menu-link mobile-menu-admin" @onclick="CloseMobileMenu">🛡️ Admin Paneli</a>
+                            <a href="/admin/dashboard" class="mobile-menu-link mobile-menu-admin" @onclick="CloseMobileMenu">🛡️ Admin Paneli</a>
                         </Authorized>
                     </AuthorizeView>
                     <div class="mobile-menu-divider"></div>

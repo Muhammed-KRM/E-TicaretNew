@@ -17,6 +17,10 @@ public static class DependencyInjection
         services.AddScoped<IUserService, UserApiService>();
         services.AddScoped<ICategoryService, CategoryApiService>();
         services.AddScoped<IContactService, ContactApiService>();
+        services.AddScoped<IWishlistService, WishlistApiService>();
+        
+        // API Services without interfaces
+        services.AddScoped<WishlistApiService>();
         
         return services;
     }

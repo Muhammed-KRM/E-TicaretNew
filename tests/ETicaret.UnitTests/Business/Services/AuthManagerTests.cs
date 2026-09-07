@@ -20,8 +20,10 @@ namespace ETicaret.UnitTests.Business.Services;
 public class AuthManagerTests
 {
     private readonly Mock<IUserRepository> _userRepoMock;
+    private readonly Mock<IRepository<Cart>> _cartRepoMock;
     private readonly Mock<IValidator<UserRegisterDto>> _validatorMock;
     private readonly Mock<IEmailService> _emailServiceMock;
+    private readonly Mock<MassTransit.IPublishEndpoint> _publishEndpointMock;
     private readonly Mock<IConfiguration> _configMock;
     private readonly Mock<ILogService> _logServiceMock;
     private readonly AuthManager _authManager;
@@ -29,15 +31,19 @@ public class AuthManagerTests
     public AuthManagerTests()
     {
         _userRepoMock = new Mock<IUserRepository>();
+        _cartRepoMock = new Mock<IRepository<Cart>>();
         _validatorMock = new Mock<IValidator<UserRegisterDto>>();
         _emailServiceMock = new Mock<IEmailService>();
+        _publishEndpointMock = new Mock<MassTransit.IPublishEndpoint>();
         _configMock = new Mock<IConfiguration>();
         _logServiceMock = new Mock<ILogService>();
 
         _authManager = new AuthManager(
             _userRepoMock.Object,
+            _cartRepoMock.Object,
             _validatorMock.Object,
             _emailServiceMock.Object,
+            _publishEndpointMock.Object,
             _configMock.Object,
             _logServiceMock.Object);
     }
@@ -96,12 +102,10 @@ public class AuthManagerTests
         result.Success.Should().BeTrue();
         result.User.Should().NotBeNull();
         result.User!.Email.Should().Be(dto.Email);
-        result.User.TokenBalance.Should().Be(3); // Hoş geldin hediyesi
 
         _userRepoMock.Verify(x => x.AddAsync(It.Is<User>(u => 
             u.Email == dto.Email && 
-            u.FullName == dto.FullName &&
-            u.TokenBalance == 3
+            u.FullName == dto.FullName
         )), Times.Once);
         _userRepoMock.Verify(x => x.SaveChangesAsync(), Times.Once);
         _emailServiceMock.Verify(x => x.SendTemplatedEmailAsync(dto.Email, "Hoş Geldiniz!", It.IsAny<Dictionary<string, string>>()), Times.Once);
