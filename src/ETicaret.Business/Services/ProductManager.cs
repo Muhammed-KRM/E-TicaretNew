@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using FluentValidation;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,8 @@ public class ProductManager : IProductService
     private readonly IPublishEndpoint _publishEndpoint;
     private readonly ILogService _logService;
     private readonly ICategoryRepository _categoryRepo;
+    private readonly IMemoryCache _cache;
+    private const string CacheKeyFeatured = "products_featured";
 
     public ProductManager(
         IProductRepository productRepo,
@@ -38,7 +41,8 @@ public class ProductManager : IProductService
         IModerationService moderationService,
         IPublishEndpoint publishEndpoint,
         ILogService logService,
-        ICategoryRepository categoryRepo)
+        ICategoryRepository categoryRepo,
+        IMemoryCache cache)
     {
         _productRepo = productRepo;
         _searchService = searchService;
@@ -47,6 +51,7 @@ public class ProductManager : IProductService
         _publishEndpoint = publishEndpoint;
         _logService = logService;
         _categoryRepo = categoryRepo;
+        _cache = cache;
     }
 
     public async Task<ProductSearchResultDto> SearchAsync(ProductSearchFilterDto filters, CancellationToken ct = default)
@@ -178,12 +183,22 @@ public class ProductManager : IProductService
 
     public async Task<List<ProductDto>> GetFeaturedAsync()
     {
+        if (_cache.TryGetValue(CacheKeyFeatured, out List<ProductDto>? cached) && cached != null)
+        {
+            return cached;
+        }
+
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             var products = await _productRepo.GetFeaturedProductsAsync(8);
             var result = products.Select(MapToDto).ToList();
             sw.Stop();
+
+            var cacheOptions = new MemoryCacheEntryOptions()
+                .SetAbsoluteExpiration(TimeSpan.FromMinutes(10)); // 10 dakika cache
+            _cache.Set(CacheKeyFeatured, result, cacheOptions);
+
             await _logService.LogFunctionSuccessAsync(EC_GETFEAT, null, result.Count, (int)sw.ElapsedMilliseconds);
             return result;
         }

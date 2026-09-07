@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using ETicaret.Business.DTOs;
 using ETicaret.Business.Exceptions;
 using ETicaret.Business.Interfaces;
@@ -9,16 +10,30 @@ namespace ETicaret.Business.Services;
 public class CategoryManager : ICategoryService
 {
     private readonly ICategoryRepository _categoryRepo;
+    private readonly IMemoryCache _cache;
+    private const string CacheKeyAll = "categories_all";
 
-    public CategoryManager(ICategoryRepository categoryRepo)
+    public CategoryManager(ICategoryRepository categoryRepo, IMemoryCache cache)
     {
         _categoryRepo = categoryRepo;
+        _cache = cache;
     }
 
     public async Task<List<CategoryDto>> GetAllAsync()
     {
+        if (_cache.TryGetValue(CacheKeyAll, out List<CategoryDto>? cachedCategories) && cachedCategories != null)
+        {
+            return cachedCategories;
+        }
+
         var categories = await _categoryRepo.GetAllAsync();
-        return categories.Select(MapToDto).ToList();
+        var result = categories.Select(MapToDto).ToList();
+
+        var cacheOptions = new MemoryCacheEntryOptions()
+            .SetAbsoluteExpiration(TimeSpan.FromHours(1)); // 1 saat cache
+        _cache.Set(CacheKeyAll, result, cacheOptions);
+
+        return result;
     }
 
     public async Task<CategoryDto?> GetByIdAsync(int id)

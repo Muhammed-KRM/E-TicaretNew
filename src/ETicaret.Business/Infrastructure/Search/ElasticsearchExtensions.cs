@@ -18,6 +18,7 @@ public static class ElasticsearchExtensions
 
             var settings = new ElasticsearchClientSettings(new Uri(url))
                 .DefaultIndex(defaultIndex)
+                .RequestTimeout(TimeSpan.FromMilliseconds(500)) // Fail fast if ES is not running
                 .ServerCertificateValidationCallback(CertificateValidations.AllowAll);
 
             var client = new ElasticsearchClient(settings);
