@@ -11,6 +11,8 @@ public interface IAdminService
     Task<List<AdminUserDto>> GetAllUsersAsync(string? search = null, string? role = null, string? status = null);
     Task SuspendUserAsync(Guid userId);
     Task ActivateUserAsync(Guid userId);
+    Task BanUserAsync(Guid userId, bool isPermanent, int days, string reason);
+    Task UnbanUserAsync(Guid userId);
 
     // Ürün Yönetimi
     Task<List<AdminProductDto>> GetAllProductsAsync(string? search = null, string? status = null);

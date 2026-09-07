@@ -46,6 +46,20 @@ public class AdminController : ControllerBase
         return Ok();
     }
 
+    [HttpPost("users/{id:guid}/ban")]
+    public async Task<IActionResult> BanUser(Guid id, [FromBody] BanRequestDto request)
+    {
+        await _adminService.BanUserAsync(id, request.IsPermanent, request.Days, request.Reason);
+        return Ok();
+    }
+
+    [HttpPost("users/{id:guid}/unban")]
+    public async Task<IActionResult> UnbanUser(Guid id)
+    {
+        await _adminService.UnbanUserAsync(id);
+        return Ok();
+    }
+
     [HttpGet("products")]
     public async Task<ActionResult<List<AdminProductDto>>> GetProducts([FromQuery] string? search, [FromQuery] string? status)
     {

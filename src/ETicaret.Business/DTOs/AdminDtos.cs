@@ -58,6 +58,13 @@ public class AdminOrderDto
     public DateTime CreatedAt { get; set; }
 }
 
+public class BanRequestDto
+{
+    public bool IsPermanent { get; set; }
+    public int Days { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
 public class AdminReportDto
 {
     public int TotalOrders { get; set; }

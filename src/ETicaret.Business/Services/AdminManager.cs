@@ -124,7 +124,47 @@ public class AdminManager : IAdminService
             var user = await _context.Users.FindAsync(userId);
             if (user != null) { user.IsActive = true; user.UpdatedAt = DateTime.UtcNow; await _context.SaveChangesAsync(); }
         }
-        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_ACTIVATEUSER, ex, userId); throw; }
+        catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_ACTIVATEUSER, ex, new { userId }); throw; }
+    }
+
+    public async Task BanUserAsync(Guid userId, bool isPermanent, int days, string reason)
+    {
+        try
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId)
+                ?? throw new KeyNotFoundException("Kullanıcı bulunamadı.");
+
+            user.BannedUntil = isPermanent ? DateTime.UtcNow.AddYears(100) : DateTime.UtcNow.AddDays(days);
+            user.BanReason = reason;
+            user.IsActive = false;
+
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            await _logService.LogFunctionErrorAsync("ADM-013", ex, new { userId, isPermanent, days, reason });
+            throw;
+        }
+    }
+
+    public async Task UnbanUserAsync(Guid userId)
+    {
+        try
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId)
+                ?? throw new KeyNotFoundException("Kullanıcı bulunamadı.");
+
+            user.BannedUntil = null;
+            user.BanReason = null;
+            user.IsActive = true;
+
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            await _logService.LogFunctionErrorAsync("ADM-014", ex, new { userId });
+            throw;
+        }
     }
 
     public async Task<List<AdminProductDto>> GetAllProductsAsync(string? search = null, string? status = null)

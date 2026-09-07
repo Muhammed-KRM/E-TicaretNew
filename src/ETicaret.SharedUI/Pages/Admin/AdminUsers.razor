@@ -342,7 +342,7 @@
     {
         try
         {
-            var response = await Http.PutAsync($"api/admin/users/{userId}/suspend", null);
+            var response = await Http.PostAsync($"api/admin/users/{userId}/suspend", null);
             if (response.IsSuccessStatusCode)
             {
                 await LoadUsers();
@@ -358,7 +358,7 @@
     {
         try
         {
-            var response = await Http.PutAsync($"api/admin/users/{userId}/activate", null);
+            var response = await Http.PostAsync($"api/admin/users/{userId}/activate", null);
             if (response.IsSuccessStatusCode)
             {
                 await LoadUsers();
