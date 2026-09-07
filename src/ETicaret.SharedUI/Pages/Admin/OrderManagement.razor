@@ -1,35 +1,442 @@
 @page "/admin/siparisler"
-@inject IOrderService OrderService
+@attribute [Authorize(Roles = "Admin")]
+@inject HttpClient Http
+@inject IJSRuntime JS
 
 <PageTitle>Sipariş Yönetimi | ETicaret.com Admin</PageTitle>
 
 <div class="container padding-y-xl">
+
+    <!-- ===== SAYFA BAŞLIĞI ===== -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Sipariş Yönetimi</h1>
+        <div>
+            <h1 class="mb-1">📦 Sipariş Yönetimi</h1>
+            <p class="text-muted mb-0">Tüm siparişleri görüntüle ve yönet</p>
+        </div>
+        @if (!_isLoading && _orders.Any())
+        {
+            <div class="text-muted" style="font-size:0.875rem;">
+                Toplam <strong>@_orders.Count</strong> sipariş
+            </div>
+        }
     </div>
 
-    <div class="glass" style="border-radius: var(--radius-lg); padding: 1.5rem; overflow-x: auto;">
-        <table class="table table-hover align-middle">
-            <thead>
-                <tr>
-                    <th>Sipariş No</th>
-                    <th>Müşteri</th>
-                    <th>Tarih</th>
-                    <th>Tutar</th>
-                    <th>Durum</th>
-                    <th>İşlemler</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Liste buraya gelecek -->
-                <tr>
-                    <td colspan="6" class="text-center py-4 text-muted">Henüz sipariş bulunmamaktadır.</td>
-                </tr>
-            </tbody>
-        </table>
+    <!-- ===== FİLTRE ÇUBUĞU ===== -->
+    <div class="glass mb-4" style="border-radius:var(--radius-lg); padding:1.25rem;">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label fw-semibold">🔍 Ara</label>
+                <input type="text"
+                       class="form-control"
+                       placeholder="Sipariş no veya müşteri adı..."
+                       @bind="_searchTerm"
+                       @onkeypress="OnSearchKeyPress" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">📋 Durum</label>
+                <select class="form-select" @bind="_selectedStatus" @bind:after="LoadOrdersAsync">
+                    <option value="">Tüm Durumlar</option>
+                    <option value="Pending">⏳ Ödeme Bekleniyor</option>
+                    <option value="Paid">💳 Ödendi</option>
+                    <option value="Preparing">🔧 Hazırlanıyor</option>
+                    <option value="Shipped">🚚 Kargoda</option>
+                    <option value="Delivered">✅ Teslim Edildi</option>
+                    <option value="Cancelled">❌ İptal Edildi</option>
+                    <option value="ReturnRequested">🔄 İade Talep Edildi</option>
+                    <option value="Refunded">💸 İade Edildi</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-primary w-100" @onclick="LoadOrdersAsync">
+                    🔍 Filtrele
+                </button>
+            </div>
+        </div>
     </div>
+
+    <!-- ===== LOADING STATE ===== -->
+    @if (_isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Yükleniyor...</span>
+            </div>
+            <p class="mt-3 text-muted">Siparişler yükleniyor...</p>
+        </div>
+    }
+    <!-- ===== ERROR STATE ===== -->
+    else if (_hasError)
+    {
+        <div class="alert alert-danger d-flex align-items-center gap-2">
+            <span>⚠️</span>
+            <div>
+                Siparişler yüklenirken bir hata oluştu.
+                <button class="btn btn-sm btn-outline-danger ms-3" @onclick="LoadOrdersAsync">🔄 Tekrar Dene</button>
+            </div>
+        </div>
+    }
+    <!-- ===== EMPTY STATE ===== -->
+    else if (!_orders.Any())
+    {
+        <div class="glass text-center py-5" style="border-radius:var(--radius-lg);">
+            <span style="font-size:3rem;">📭</span>
+            <h5 class="mt-3">Sipariş bulunamadı</h5>
+            <p class="text-muted">Arama kriterlerinize uygun sipariş yok.</p>
+        </div>
+    }
+    @* ===== SİPARİŞ TABLOSU ===== *@
+    else
+    {
+        <div class="glass" style="border-radius:var(--radius-lg); overflow:hidden;">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Sipariş No</th>
+                            <th>Müşteri</th>
+                            <th>Tarih</th>
+                            <th>Tutar</th>
+                            <th>Durum</th>
+                            <th class="text-end">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var order in _orders)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="fw-semibold font-monospace">#@order.OrderNumber</span>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+                                             style="width:32px;height:32px;font-size:0.8rem;flex-shrink:0;">
+                                            @(order.CustomerName.Length > 0 ? order.CustomerName[0].ToString().ToUpper() : "?")
+                                        </div>
+                                        <span>@order.CustomerName</span>
+                                    </div>
+                                </td>
+                                <td class="text-muted" style="font-size:0.875rem;">
+                                    @order.CreatedAt.ToString("dd.MM.yyyy")
+                                    <br /><small>@order.CreatedAt.ToString("HH:mm")</small>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-success">@FormatCurrency(order.TotalPrice)</span>
+                                </td>
+                                <td>
+                                    <span class="badge @GetStatusBadgeClass(order.Status)">
+                                        @GetStatusIcon(order.Status) @GetStatusLabel(order.Status)
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary"
+                                                @onclick="() => ShowStatusModal(order)"
+                                                title="Durumu Güncelle">
+                                            ✏️ Durum
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
 </div>
 
+<!-- ===== DURUM GÜNCELLEME MODAL ===== -->
+@if (_showStatusModal && _selectedOrder is not null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">✏️ Sipariş Durumunu Güncelle</h5>
+                    <button type="button" class="btn-close" @onclick="CloseStatusModal"></button>
+                </div>
+                <div class="modal-body">
+
+                    <!-- Sipariş Özeti -->
+                    <div class="alert alert-light mb-4">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <small class="text-muted">Sipariş No</small>
+                                <p class="fw-bold font-monospace mb-0">#@_selectedOrder.OrderNumber</p>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Müşteri</small>
+                                <p class="fw-bold mb-0">@_selectedOrder.CustomerName</p>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Mevcut Durum</small>
+                                <p class="mb-0">
+                                    <span class="badge @GetStatusBadgeClass(_selectedOrder.Status)">
+                                        @GetStatusLabel(_selectedOrder.Status)
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Tutar</small>
+                                <p class="fw-bold text-success mb-0">@FormatCurrency(_selectedOrder.TotalPrice)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Yeni Durum Seçimi -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Yeni Durum *</label>
+                        <select class="form-select" @bind="_newStatus" @bind:after="OnStatusChanged">
+                            <option value="">-- Durum Seçin --</option>
+                            <option value="Pending">⏳ Ödeme Bekleniyor</option>
+                            <option value="Paid">💳 Ödendi</option>
+                            <option value="Preparing">🔧 Hazırlanıyor</option>
+                            <option value="Shipped">🚚 Kargoya Verildi</option>
+                            <option value="Delivered">✅ Teslim Edildi</option>
+                            <option value="Cancelled">❌ İptal Edildi</option>
+                            <option value="ReturnRequested">🔄 İade Talep Edildi</option>
+                            <option value="Refunded">💸 İade Edildi</option>
+                        </select>
+                    </div>
+
+                    <!-- Kargo Bilgileri (sadece Shipped seçildiğinde) -->
+                    @if (_newStatus == "Shipped")
+                    {
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">🚚 Kargo Firması</label>
+                            <input type="text" class="form-control"
+                                   placeholder="Yurtiçi, Aras, MNG..."
+                                   @bind="_shippingCompany" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">📦 Takip Numarası</label>
+                            <input type="text" class="form-control"
+                                   placeholder="Kargo takip numarasını giriniz"
+                                   @bind="_trackingNumber" />
+                        </div>
+                    }
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseStatusModal">
+                        İptal
+                    </button>
+                    <button type="button"
+                            class="btn btn-primary"
+                            @onclick="UpdateOrderStatusAsync"
+                            disabled="@(_isUpdating || string.IsNullOrEmpty(_newStatus))">
+                        @if (_isUpdating)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Güncelle
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
-    
+    // ─── State ───────────────────────────────────────────────────────────────
+    private List<AdminOrderDto> _orders          = new();
+    private bool                _isLoading       = true;
+    private bool                _hasError        = false;
+    private string              _searchTerm      = string.Empty;
+    private string              _selectedStatus  = string.Empty;
+
+    // Modal state
+    private bool           _showStatusModal = false;
+    private AdminOrderDto? _selectedOrder;
+    private string         _newStatus       = string.Empty;
+    private string         _shippingCompany = string.Empty;
+    private string         _trackingNumber  = string.Empty;
+    private bool           _isUpdating      = false;
+
+    // ─── Lifecycle ───────────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync()
+        => await LoadOrdersAsync();
+
+    // ─── Veri Yükleme ────────────────────────────────────────────────────────
+    /// <summary>
+    /// Admin API'den siparişleri arama ve durum filtreleriyle çeker.
+    /// Performans: Yalnızca gerekli alanları dönen AdminOrderDto kullanılır.
+    /// </summary>
+    private async Task LoadOrdersAsync()
+    {
+        _isLoading = true;
+        _hasError  = false;
+        StateHasChanged();
+
+        try
+        {
+            var search = Uri.EscapeDataString(_searchTerm ?? string.Empty);
+            var query  = $"api/admin/orders?search={search}&status={_selectedStatus}";
+
+            _orders = await Http.GetFromJsonAsync<List<AdminOrderDto>>(query) ?? new();
+        }
+        catch (HttpRequestException httpEx)
+        {
+            _hasError = true;
+            Console.Error.WriteLine($"[OrderManagement][HTTP] Siparişler yüklenirken HTTP hatası: {httpEx.Message}");
+        }
+        catch (Exception ex)
+        {
+            _hasError = true;
+            Console.Error.WriteLine($"[OrderManagement][ERROR] Beklenmeyen hata: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    // ─── Arama ───────────────────────────────────────────────────────────────
+    private async Task OnSearchKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await LoadOrdersAsync();
+    }
+
+    // ─── Modal Yönetimi ──────────────────────────────────────────────────────
+    private void ShowStatusModal(AdminOrderDto order)
+    {
+        _selectedOrder   = order;
+        _newStatus       = string.Empty;
+        _shippingCompany = string.Empty;
+        _trackingNumber  = string.Empty;
+        _showStatusModal = true;
+    }
+
+    private void CloseStatusModal()
+    {
+        _showStatusModal = false;
+        _selectedOrder   = null;
+        _newStatus       = string.Empty;
+    }
+
+    /// <summary>Durum değiştiğinde kargo alanlarını sıfırlar.</summary>
+    private void OnStatusChanged()
+    {
+        if (_newStatus != "Shipped")
+        {
+            _shippingCompany = string.Empty;
+            _trackingNumber  = string.Empty;
+        }
+    }
+
+    // ─── Durum Güncelleme ────────────────────────────────────────────────────
+    /// <summary>
+    /// Seçili siparişin durumunu günceller.
+    /// Kargo seçilmişse kargo bilgilerini ayrı bir endpoint ile günceller.
+    /// </summary>
+    private async Task UpdateOrderStatusAsync()
+    {
+        if (_selectedOrder is null || string.IsNullOrEmpty(_newStatus))
+            return;
+
+        _isUpdating = true;
+        try
+        {
+            // 1. Durum güncelleme
+            var statusResponse = await Http.PutAsJsonAsync(
+                $"api/admin/orders/{_selectedOrder.Id}/status",
+                _newStatus);
+
+            if (!statusResponse.IsSuccessStatusCode)
+            {
+                Console.Error.WriteLine($"[OrderManagement] Durum güncellenemedi: {statusResponse.StatusCode}");
+                await ShowErrorAlertAsync("Durum güncellenirken bir hata oluştu.");
+                return;
+            }
+
+            // 2. Kargo bilgisi güncelleme (sadece Shipped durumunda)
+            if (_newStatus == "Shipped" &&
+                (!string.IsNullOrWhiteSpace(_shippingCompany) || !string.IsNullOrWhiteSpace(_trackingNumber)))
+            {
+                var shippingPayload = new
+                {
+                    ShippingCompany = _shippingCompany,
+                    TrackingNumber  = _trackingNumber
+                };
+
+                var shippingResponse = await Http.PostAsJsonAsync(
+                    $"api/admin/orders/{_selectedOrder.Id}/shipping",
+                    shippingPayload);
+
+                if (!shippingResponse.IsSuccessStatusCode)
+                    Console.Error.WriteLine($"[OrderManagement] Kargo bilgisi güncellenemedi: {shippingResponse.StatusCode}");
+            }
+
+            CloseStatusModal();
+            await LoadOrdersAsync();
+            await ShowSuccessAlertAsync("Sipariş durumu başarıyla güncellendi!");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[OrderManagement][ERROR] Durum güncellerken hata: {ex.Message}");
+            await ShowErrorAlertAsync("Beklenmeyen bir hata oluştu.");
+        }
+        finally
+        {
+            _isUpdating = false;
+        }
+    }
+
+    // ─── JS Alert Yardımcıları ───────────────────────────────────────────────
+    private Task ShowSuccessAlertAsync(string message)
+        => JS.InvokeVoidAsync("alert", message).AsTask();
+
+    private Task ShowErrorAlertAsync(string message)
+        => JS.InvokeVoidAsync("alert", $"Hata: {message}").AsTask();
+
+    // ─── Görünüm Yardımcıları ────────────────────────────────────────────────
+
+    private static string FormatCurrency(decimal amount)
+        => amount.ToString("N0", new System.Globalization.CultureInfo("tr-TR")) + " ₺";
+
+    private static string GetStatusLabel(string status) => status switch
+    {
+        "Pending"         => "Ödeme Bekleniyor",
+        "Paid"            => "Ödendi",
+        "Preparing"       => "Hazırlanıyor",
+        "Shipped"         => "Kargoda",
+        "Delivered"       => "Teslim Edildi",
+        "Cancelled"       => "İptal Edildi",
+        "ReturnRequested" => "İade Talep",
+        "Refunded"        => "İade Edildi",
+        "ReturnRejected"  => "İade Reddedildi",
+        "Failed"          => "Başarısız",
+        _                 => status
+    };
+
+    private static string GetStatusIcon(string status) => status switch
+    {
+        "Pending"         => "⏳",
+        "Paid"            => "💳",
+        "Preparing"       => "🔧",
+        "Shipped"         => "🚚",
+        "Delivered"       => "✅",
+        "Cancelled"       => "❌",
+        "ReturnRequested" => "🔄",
+        "Refunded"        => "💸",
+        "Failed"          => "🔴",
+        _                 => "❓"
+    };
+
+    private static string GetStatusBadgeClass(string status) => status switch
+    {
+        "Pending"         => "bg-warning text-dark",
+        "Paid"            => "bg-info text-dark",
+        "Preparing"       => "bg-primary",
+        "Shipped"         => "bg-secondary",
+        "Delivered"       => "bg-success",
+        "Cancelled"       => "bg-danger",
+        "ReturnRequested" => "bg-warning",
+        "Refunded"        => "bg-dark",
+        "Failed"          => "bg-danger",
+        _                 => "bg-light text-dark"
+    };
 }
