@@ -1,3 +1,356 @@
-﻿@page "/admin/dashboard"
-<PageTitle>Admin Dashboard</PageTitle>
-<h1>Admin Dashboard</h1>
+@page "/admin/dashboard"
+@page "/admin"
+@attribute [Authorize(Roles = "Admin")]
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Admin Dashboard | ETicaret.com</PageTitle>
+
+<div class="admin-dashboard">
+    <div class="container">
+
+        <!-- ===== SAYFA BAŞLIĞI ===== -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="mb-1">🛡️ Admin Paneli</h1>
+                <p class="text-muted mb-0">Genel bakış ve hızlı aksiyonlar</p>
+            </div>
+            <div class="text-muted" style="font-size:0.875rem;">
+                Son güncelleme: @_lastUpdated.ToString("dd.MM.yyyy HH:mm")
+            </div>
+        </div>
+
+        <!-- ===== LOADING STATE ===== -->
+        @if (_isLoading)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Yükleniyor...</span>
+                </div>
+                <p class="mt-3 text-muted">Dashboard verileri yükleniyor...</p>
+            </div>
+        }
+        else if (_hasError)
+        {
+            <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+                <span>⚠️</span>
+                <div>
+                    Dashboard verileri yüklenirken bir hata oluştu.
+                    <button class="btn btn-sm btn-outline-danger ms-3" @onclick="LoadDashboardAsync">
+                        🔄 Tekrar Dene
+                    </button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- ===== İSTATİSTİK KARTLARI ===== -->
+            <div class="stats-grid">
+
+                <div class="stat-card">
+                    <div class="stat-icon messages">📦</div>
+                    <div class="stat-content">
+                        <p class="stat-number">@_stats!.TotalOrders</p>
+                        <p class="stat-label">Toplam Sipariş</p>
+                        @if (_stats.PendingOrders > 0)
+                        {
+                            <span class="stat-change neutral">⏳ @_stats.PendingOrders bekliyor</span>
+                        }
+                        else
+                        {
+                            <span class="stat-change positive">✅ Bekleyen yok</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon revenue">💰</div>
+                    <div class="stat-content">
+                        <p class="stat-number">@FormatCurrency(_stats.TotalRevenue)</p>
+                        <p class="stat-label">Toplam Gelir</p>
+                        <span class="stat-change positive">₺ Onaylı siparişler</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon users">👥</div>
+                    <div class="stat-content">
+                        <p class="stat-number">@_stats.TotalUsers</p>
+                        <p class="stat-label">Toplam Kullanıcı</p>
+                        <span class="stat-change positive">👤 @_stats.ActiveUsers aktif</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon listings">🛒</div>
+                    <div class="stat-content">
+                        <p class="stat-number">@_stats.TotalProducts</p>
+                        <p class="stat-label">Toplam Ürün</p>
+                        @if (_stats.PendingProducts > 0)
+                        {
+                            <span class="stat-change neutral">⏳ @_stats.PendingProducts onay bekliyor</span>
+                        }
+                        else
+                        {
+                            <span class="stat-change positive">✅ Tümü onaylı</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon messages" style="background: linear-gradient(135deg,#FEE2E2 0%,#FECACA 100%);">⏳</div>
+                    <div class="stat-content">
+                        <p class="stat-number">@_stats.PendingOrders</p>
+                        <p class="stat-label">Bekleyen Sipariş</p>
+                        <span class="stat-change @(_stats.PendingOrders > 0 ? "neutral" : "positive")">
+                            @(_stats.PendingOrders > 0 ? "İşlem bekliyor" : "Temiz ✅")
+                        </span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon messages" style="background: linear-gradient(135deg,#E0E7FF 0%,#C7D2FE 100%);">👤</div>
+                    <div class="stat-content">
+                        <p class="stat-number">@_stats.ActiveUsers</p>
+                        <p class="stat-label">Aktif Kullanıcı</p>
+                        <span class="stat-change positive">Toplam @_stats.TotalUsers içinde</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon listings" style="background: linear-gradient(135deg,#FEF3C7 0%,#FDE68A 100%);">⚠️</div>
+                    <div class="stat-content">
+                        <p class="stat-number">@_stats.PendingProducts</p>
+                        <p class="stat-label">Onay Bekleyen Ürün</p>
+                        <span class="stat-change @(_stats.PendingProducts > 0 ? "neutral" : "positive")">
+                            @(_stats.PendingProducts > 0 ? "İnceleme gerekli" : "Hepsi aktif ✅")
+                        </span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon messages" style="background: linear-gradient(135deg,#FFE4E6 0%,#FECDD3 100%);">🚨</div>
+                    <div class="stat-content">
+                        <p class="stat-number">@_stats.TotalViolations</p>
+                        <p class="stat-label">Toplam İhlal</p>
+                        <span class="stat-change @(_stats.TotalViolations > 0 ? "neutral" : "positive")">
+                            @(_stats.TotalViolations > 0 ? "Dikkat gerekiyor" : "Sorun yok ✅")
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ===== HIZLI AKSİYONLAR ===== -->
+            <div class="quick-actions">
+                <h2>⚡ Hızlı Aksiyonlar</h2>
+                <div class="actions-grid">
+
+                    <a href="/admin/urun-ekle" class="action-btn text-decoration-none">
+                        <span class="action-icon">➕</span>
+                        <span class="action-text">Yeni Ürün Ekle</span>
+                    </a>
+
+                    <a href="/admin/siparisler" class="action-btn text-decoration-none">
+                        <span class="action-icon">📦</span>
+                        <span class="action-text">Siparişler</span>
+                    </a>
+
+                    <a href="/admin/users" class="action-btn text-decoration-none">
+                        <span class="action-icon">👥</span>
+                        <span class="action-text">Kullanıcılar</span>
+                    </a>
+
+                    <a href="/admin/kategoriler" class="action-btn text-decoration-none">
+                        <span class="action-icon">🗂️</span>
+                        <span class="action-text">Kategoriler</span>
+                    </a>
+
+                    <a href="/admin/raporlar" class="action-btn text-decoration-none">
+                        <span class="action-icon">📊</span>
+                        <span class="action-text">Raporlar</span>
+                    </a>
+
+                    <a href="/admin/settings" class="action-btn text-decoration-none">
+                        <span class="action-icon">⚙️</span>
+                        <span class="action-text">Sistem Ayarları</span>
+                    </a>
+
+                </div>
+            </div>
+
+            <!-- ===== SON SİPARİŞLER ===== -->
+            <div class="recent-activity">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="mb-0">🕒 Son Siparişler</h2>
+                    <a href="/admin/siparisler" class="btn btn-sm btn-outline-primary">Tümünü Gör →</a>
+                </div>
+
+                @if (!_recentOrders.Any())
+                {
+                    <div class="text-center py-4 text-muted">
+                        <span style="font-size:2.5rem;">📭</span>
+                        <p class="mt-2">Henüz sipariş bulunmamaktadır.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sipariş No</th>
+                                    <th>Müşteri</th>
+                                    <th>Tutar</th>
+                                    <th>Durum</th>
+                                    <th>Tarih</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var order in _recentOrders)
+                                {
+                                    <tr>
+                                        <td>
+                                            <span class="fw-semibold font-monospace">#@order.OrderNumber</span>
+                                        </td>
+                                        <td>@order.CustomerName</td>
+                                        <td>
+                                            <span class="fw-semibold text-success">@FormatCurrency(order.TotalPrice)</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge @GetOrderStatusBadgeClass(order.Status)">
+                                                @GetOrderStatusLabel(order.Status)
+                                            </span>
+                                        </td>
+                                        <td class="text-muted" style="font-size:0.875rem;">
+                                            @order.CreatedAt.ToString("dd.MM.yyyy HH:mm")
+                                        </td>
+                                        <td>
+                                            <a href="/admin/siparisler" class="btn btn-sm btn-outline-secondary">Detay</a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+
+            <!-- ===== SİSTEM DURUMU ===== -->
+            <div class="system-status">
+                <h2>🖥️ Sistem Durumu</h2>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">🌐 API Servisi</span>
+                        <span class="status-badge online">✅ Çalışıyor</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">🗄️ Veritabanı</span>
+                        <span class="status-badge @(_hasError ? "offline" : "online")">
+                            @(_hasError ? "❌ Bağlantı Hatası" : "✅ Bağlı")
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">📅 Son Güncelleme</span>
+                        <span class="status-badge online">@_lastUpdated.ToString("HH:mm:ss")</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">👤 Oturum</span>
+                        <span class="status-badge online">✅ Admin</span>
+                    </div>
+                </div>
+            </div>
+        }
+
+    </div>
+</div>
+
+@code {
+    // ─── State ───────────────────────────────────────────────────────────────
+    private AdminDashboardStatsDto? _stats;
+    private List<AdminOrderDto>     _recentOrders = new();
+    private bool                    _isLoading    = true;
+    private bool                    _hasError     = false;
+    private DateTime                _lastUpdated  = DateTime.Now;
+
+    // ─── Lifecycle ───────────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync()
+        => await LoadDashboardAsync();
+
+    // ─── Veri Yükleme ────────────────────────────────────────────────────────
+    /// <summary>
+    /// Dashboard istatistiklerini ve son siparişleri paralel yükler.
+    /// Hata durumunda loglama için Console kullanılır; ileride ILogService'e bağlanabilir.
+    /// </summary>
+    private async Task LoadDashboardAsync()
+    {
+        _isLoading = true;
+        _hasError  = false;
+        StateHasChanged();
+
+        try
+        {
+            // Paralel API çağrısı → performans optimizasyonu (plan gereği)
+            var statsTask  = Http.GetFromJsonAsync<AdminDashboardStatsDto>("api/admin/dashboard");
+            var ordersTask = Http.GetFromJsonAsync<List<AdminOrderDto>>("api/admin/orders");
+
+            await Task.WhenAll(statsTask, ordersTask);
+
+            _stats        = statsTask.Result;
+            _recentOrders = (ordersTask.Result ?? new()).Take(10).ToList();
+            _lastUpdated  = DateTime.Now;
+        }
+        catch (HttpRequestException httpEx)
+        {
+            _hasError = true;
+            Console.Error.WriteLine($"[AdminDashboard][HTTP] Dashboard yüklenirken HTTP hatası: {httpEx.Message}");
+        }
+        catch (Exception ex)
+        {
+            _hasError = true;
+            Console.Error.WriteLine($"[AdminDashboard][ERROR] Dashboard yüklenirken beklenmeyen hata: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    // ─── Yardımcı Metodlar ───────────────────────────────────────────────────
+
+    /// <summary>Decimal tutarı Türk Lirası formatına çevirir.</summary>
+    private static string FormatCurrency(decimal amount)
+        => amount.ToString("N0", new System.Globalization.CultureInfo("tr-TR")) + " ₺";
+
+    /// <summary>Sipariş durumu string'ini Türkçe etikete çevirir.</summary>
+    private static string GetOrderStatusLabel(string status) => status switch
+    {
+        "Pending"          => "Ödeme Bekleniyor",
+        "Paid"             => "Ödendi",
+        "Preparing"        => "Hazırlanıyor",
+        "Shipped"          => "Kargoda",
+        "Delivered"        => "Teslim Edildi",
+        "Cancelled"        => "İptal Edildi",
+        "ReturnRequested"  => "İade Talep Edildi",
+        "Refunded"         => "İade Edildi",
+        "ReturnRejected"   => "İade Reddedildi",
+        "Failed"           => "Başarısız",
+        _                  => status
+    };
+
+    /// <summary>Sipariş durumuna göre Bootstrap badge CSS sınıfını döner.</summary>
+    private static string GetOrderStatusBadgeClass(string status) => status switch
+    {
+        "Pending"          => "bg-warning text-dark",
+        "Paid"             => "bg-info text-dark",
+        "Preparing"        => "bg-primary",
+        "Shipped"          => "bg-secondary",
+        "Delivered"        => "bg-success",
+        "Cancelled"        => "bg-danger",
+        "ReturnRequested"  => "bg-warning",
+        "Refunded"         => "bg-dark",
+        "Failed"           => "bg-danger",
+        _                  => "bg-light text-dark"
+    };
+}
