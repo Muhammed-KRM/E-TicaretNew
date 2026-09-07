@@ -57,3 +57,34 @@ public class AdminOrderDto
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }
+
+public class AdminReportDto
+{
+    public int TotalOrders { get; set; }
+    public decimal TotalRevenue { get; set; }
+    public int TotalCustomers { get; set; }
+    public decimal AverageOrderValue { get; set; }
+    public List<TopProductDto> TopProducts { get; set; } = new();
+    public List<OrdersByStatusDto> OrdersByStatus { get; set; } = new();
+    public List<MonthlySalesDto> MonthlySales { get; set; } = new();
+}
+
+public class TopProductDto
+{
+    public string ProductName { get; set; } = string.Empty;
+    public int SalesCount { get; set; }
+    public decimal Revenue { get; set; }
+}
+
+public class OrdersByStatusDto
+{
+    public string Status { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
+public class MonthlySalesDto
+{
+    public string Month { get; set; } = string.Empty;
+    public decimal Revenue { get; set; }
+    public int OrderCount { get; set; }
+}

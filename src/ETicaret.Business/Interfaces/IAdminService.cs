@@ -22,4 +22,7 @@ public interface IAdminService
     // Sipariş Yönetimi
     Task<List<AdminOrderDto>> GetAllOrdersAsync(string? search = null, string? status = null);
     Task UpdateOrderStatusAsync(Guid orderId, string newStatus);
+
+    // Raporlar
+    Task<AdminReportDto> GetReportAsync(DateTime? from, DateTime? to);
 }

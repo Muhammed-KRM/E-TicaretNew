@@ -185,4 +185,13 @@ public class AdminController : ControllerBase
         await contactService.ReplyToMessageAsync(id, dto.Reply);
         return Ok();
     }
+
+    // --- RAPORLAR ---
+
+    [HttpGet("reports")]
+    public async Task<ActionResult<AdminReportDto>> GetReport([FromQuery] DateTime? from, [FromQuery] DateTime? to)
+    {
+        var report = await _adminService.GetReportAsync(from, to);
+        return Ok(report);
+    }
 }

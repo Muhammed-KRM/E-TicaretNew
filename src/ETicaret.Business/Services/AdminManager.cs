@@ -254,4 +254,60 @@ public class AdminManager : IAdminService
         }
         catch (Exception ex) { await _logService.LogFunctionErrorAsync(EC_UPDATEORDER, ex, new { orderId, newStatus }); throw; }
     }
+
+    public async Task<AdminReportDto> GetReportAsync(DateTime? from, DateTime? to)
+    {
+        try
+        {
+            var startDate = from ?? DateTime.UtcNow.AddMonths(-6);
+            var endDate = to ?? DateTime.UtcNow;
+
+            var query = _context.Orders
+                .Where(o => o.CreatedAt >= startDate && o.CreatedAt <= endDate);
+
+            var totalOrders = await query.CountAsync();
+            var totalRevenue = await query.Where(o => o.Status == OrderStatus.Delivered || o.Status == OrderStatus.Shipped).SumAsync(o => o.TotalPrice);
+            var totalCustomers = await query.Select(o => o.UserId).Distinct().CountAsync();
+            var averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+            var ordersByStatus = await query
+                .GroupBy(o => o.Status)
+                .Select(g => new OrdersByStatusDto
+                {
+                    Status = g.Key.ToString(),
+                    Count = g.Count()
+                })
+                .ToListAsync();
+
+            var monthlySales = await query
+                .GroupBy(o => new { o.CreatedAt.Year, o.CreatedAt.Month })
+                .Select(g => new MonthlySalesDto
+                {
+                    Month = $"{g.Key.Year}-{g.Key.Month:D2}",
+                    OrderCount = g.Count(),
+                    Revenue = g.Where(o => o.Status == OrderStatus.Delivered || o.Status == OrderStatus.Shipped).Sum(o => o.TotalPrice)
+                })
+                .OrderBy(m => m.Month)
+                .ToListAsync();
+
+            // En çok satan ürünler (Top 10) - Şu anki DB yapısında OrderItem yok, bu yüzden basitçe boş bırakıyoruz veya mock dönüyoruz
+            var topProducts = new List<TopProductDto>(); 
+
+            return new AdminReportDto
+            {
+                TotalOrders = totalOrders,
+                TotalRevenue = totalRevenue,
+                TotalCustomers = totalCustomers,
+                AverageOrderValue = averageOrderValue,
+                OrdersByStatus = ordersByStatus,
+                MonthlySales = monthlySales,
+                TopProducts = topProducts
+            };
+        }
+        catch (Exception ex)
+        {
+            await _logService.LogFunctionErrorAsync("ADM-012", ex, new { from, to });
+            throw;
+        }
+    }
 }
