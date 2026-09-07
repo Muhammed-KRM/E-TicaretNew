@@ -5,7 +5,7 @@
 @using ETicaret.Business.Interfaces
 @inject IProductService ProductService
 @inject ICategoryService CategoryService
-@inject IFileStorageService FileStorage
+@inject HttpClient Http
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 @attribute [Authorize(Roles = "Admin")]
@@ -434,9 +434,26 @@
         {
             foreach (var file in files)
             {
-                using var stream = file.OpenReadStream(5 * 1024 * 1024); // 5 MB max
-                var url = await FileStorage.UploadAsync(stream, file.Name, file.ContentType);
-                productForm.ImageUrls.Add(url);
+                using var content = new MultipartFormDataContent();
+                var fileContent = new StreamContent(file.OpenReadStream(5 * 1024 * 1024)); // 5 MB max
+                fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+                content.Add(fileContent, "file", file.Name);
+
+                var response = await Http.PostAsync("api/upload", content);
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                    if (result.TryGetProperty("imageUrl", out var urlElement))
+                    {
+                        productForm.ImageUrls.Add(urlElement.GetString());
+                    }
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    await JS.InvokeVoidAsync("ozelders.showSwal", "error", "Yükleme Hatası", 
+                        $"Görsel yüklenemedi: {error}", 0);
+                }
             }
         }
         catch (Exception ex)
@@ -457,7 +474,7 @@
         {
             try
             {
-                await FileStorage.DeleteAsync(url);
+                await Http.DeleteAsync($"api/upload?fileUrl={Uri.EscapeDataString(url)}");
             }
             catch
             {

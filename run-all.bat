@@ -45,15 +45,37 @@ echo.
 pause
 echo.
 
-REM API'yi başlat
-start "ETicaret API" cmd /k "cd /d %~dp0src\ETicaret.API && echo API Başlatılıyor... && dotnet run --launch-profile http"
+REM Çözümü önceden derle (Dosya kilitleme hatalarını önlemek için)
+echo Çözüm derleniyor... Lütfen bekleyin...
+dotnet build "%~dp0src\ETicaret.API\ETicaret.API.csproj"
+if %errorlevel% neq 0 (
+    echo.
+    echo ❌ HATA: API projesi derlenemedi. Lütfen hataları kontrol edin.
+    echo.
+    pause
+    exit /b 1
+)
 
-REM 5 saniye bekle (API'nin başlaması için)
-echo API başlatıldı. Web uygulaması için 5 saniye bekleniyor...
-timeout /t 5 /nobreak > nul
+dotnet build "%~dp0src\ETicaret.Web\ETicaret.Web.csproj"
+if %errorlevel% neq 0 (
+    echo.
+    echo ❌ HATA: Web projesi derlenemedi. Lütfen hataları kontrol edin.
+    echo.
+    pause
+    exit /b 1
+)
+echo Projeler başarıyla derlendi.
+echo.
+
+REM API'yi başlat
+start "ETicaret API" cmd /k "cd /d %~dp0src\ETicaret.API && echo API Başlatılıyor... && dotnet run --no-build --launch-profile http"
+
+REM 3 saniye bekle (API'nin başlaması için)
+echo API başlatıldı. Web uygulaması için 3 saniye bekleniyor...
+timeout /t 3 /nobreak > nul
 
 REM Web uygulamasını başlat
-start "ETicaret Web" cmd /k "cd /d %~dp0src\ETicaret.Web && echo Web Uygulaması Başlatılıyor... && dotnet run --launch-profile http"
+start "ETicaret Web" cmd /k "cd /d %~dp0src\ETicaret.Web && echo Web Uygulaması Başlatılıyor... && dotnet run --no-build --launch-profile http"
 
 echo.
 echo ==========================================
