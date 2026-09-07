@@ -15,7 +15,6 @@
 
     <!-- ETicaret SharedUI Tasarım Sistemi -->
     <link rel="stylesheet" href="_content/ETicaret.SharedUI/css/app.css" />
-    <link rel="stylesheet" href="_content/ETicaret.SharedUI/ETicaret.SharedUI.bundle.scp.css" />
     <link rel="stylesheet" href="ETicaret.Web.styles.css" />
     
     <!-- SweetAlert2 — Local -->
