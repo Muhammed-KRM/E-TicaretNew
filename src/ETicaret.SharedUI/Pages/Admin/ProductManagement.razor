@@ -25,8 +25,9 @@
         <div class="glass" style="border-radius: var(--radius-lg); padding: 2rem;">
             <h2 class="mb-4">@(isEditMode ? "Ürün Düzenle" : "Yeni Ürün Ekle")</h2>
             
-            <EditForm Model="productForm" OnValidSubmit="SaveProduct">
+            <EditForm Model="productForm" OnValidSubmit="SaveProduct" OnInvalidSubmit="HandleInvalidSubmit">
                 <DataAnnotationsValidator />
+                <ValidationSummary class="alert alert-danger" />
                 
                 <div class="row">
                     <div class="col-md-8">
@@ -481,6 +482,12 @@
                 // Yoksay
             }
         }
+    }
+
+    private async Task HandleInvalidSubmit()
+    {
+        await JS.InvokeVoidAsync("ozelders.showSwal", "warning", "Eksik Bilgi", 
+            "Lütfen tüm zorunlu alanları doğru şekilde doldurunuz. Kırmızı ile işaretlenmiş alanları kontrol edin.", 0);
     }
 
     private async Task SaveProduct()

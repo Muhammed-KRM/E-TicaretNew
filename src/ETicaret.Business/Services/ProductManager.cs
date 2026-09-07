@@ -56,6 +56,13 @@ public class ProductManager : IProductService
         {
             var result = await _searchService.SearchAsync(filters);
             sw.Stop();
+            
+            // Elasticsearch boş veya hatalı dönerse PostgreSQL'e fallback yap
+            if (result.TotalCount <= 0 && !result.Items.Any())
+            {
+                return await SearchFromDatabaseAsync(filters);
+            }
+            
             await _logService.LogFunctionSuccessAsync(EC_SEARCH, filters, result, (int)sw.ElapsedMilliseconds);
             return result;
         }
@@ -63,8 +70,66 @@ public class ProductManager : IProductService
         {
             sw.Stop();
             await _logService.LogFunctionErrorAsync(EC_SEARCH, ex, filters);
-            throw;
+            
+            // Elasticsearch bağlantı hatası — doğrudan veritabanından çek
+            try
+            {
+                return await SearchFromDatabaseAsync(filters);
+            }
+            catch
+            {
+                throw; // DB de başarısız olursa orijinal hatayı fırlat
+            }
         }
+    }
+
+    /// <summary>
+    /// Elasticsearch çalışmadığında veya boş döndüğünde PostgreSQL'den doğrudan ürün arama.
+    /// </summary>
+    private async Task<ProductSearchResultDto> SearchFromDatabaseAsync(ProductSearchFilterDto filters)
+    {
+        var query = _productRepo.GetActiveWithDetailsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(filters.Query))
+        {
+            var q = filters.Query.ToLower();
+            query = query.Where(p => p.Title.ToLower().Contains(q) || p.Description.ToLower().Contains(q));
+        }
+
+        if (filters.CategoryId.HasValue)
+            query = query.Where(p => p.CategoryId == filters.CategoryId.Value);
+
+        if (!string.IsNullOrWhiteSpace(filters.Brand))
+            query = query.Where(p => p.Brand == filters.Brand);
+
+        if (filters.InStock == true)
+            query = query.Where(p => p.StockQuantity > 0);
+
+        if (filters.IsFeatured == true)
+            query = query.Where(p => p.IsFeatured);
+
+        var totalCount = await query.CountAsync();
+
+        query = filters.SortBy switch
+        {
+            "price_asc" => query.OrderBy(p => p.Price),
+            "price_desc" => query.OrderByDescending(p => p.Price),
+            "rating" => query.OrderByDescending(p => p.AverageRating),
+            _ => query.OrderByDescending(p => p.CreatedAt)
+        };
+
+        var products = await query
+            .Skip((filters.Page - 1) * filters.PageSize)
+            .Take(filters.PageSize)
+            .ToListAsync();
+
+        return new ProductSearchResultDto
+        {
+            Page = filters.Page,
+            PageSize = filters.PageSize,
+            TotalCount = totalCount,
+            Items = products.Select(MapToDto).ToList()
+        };
     }
 
     public async Task<ProductDto?> GetByIdAsync(Guid id)
